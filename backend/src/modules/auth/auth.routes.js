@@ -1,20 +1,17 @@
 import {Router} from 'express';
 import {login} from './auth.service.js';
 import { authenticate, authorize } from '../../middlewares/auth.js';
+import { validate } from '../../middlewares/validate.js';
+import { loginSchema } from './auth.validator.js';
+import { AppError } from '../../utils/AppError.js';
 
 const router = Router();
 
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body ?? {};
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Correo y contraseña son obligatorios' });
-  }
-
-    const result = await login(email.trim().toLowerCase(), password);
-    if (!result) {
-      return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
-    }
-    res.json(result);
+router.post('/login', validate({ body: loginSchema }), async (req, res) => {
+  const { email, password } = req.valid.body; // ya validados y normalizados
+  const result = await login(email, password);
+  if (!result) throw AppError.unauthorized('Correo o contraseña incorrectos');
+  res.json(result);
 });
 
 router.get('/me', authenticate, (req, res) => {
