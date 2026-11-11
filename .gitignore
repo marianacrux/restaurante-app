@@ -1,0 +1,14 @@
+# Librerías instaladas con npm (se reinstalan con "npm install"; pesan cientos de MB)
+node_modules/
+
+# Variables de entorno: aquí irán contraseñas y claves secretas
+.env
+.env.*
+!.env.example
+
+# Archivos generados al compilar el frontend
+dist/
+
+# Registros y archivos del sistema
+*.log
+.DS_Store
