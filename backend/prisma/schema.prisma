@@ -117,7 +117,6 @@ model Customer {
   id        Int      @id @default(autoincrement())
   name      String
   phone     String   @unique //el telef identifica al cliente
-  address   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -142,7 +141,7 @@ model Product {
   name        String
   description String?
   price       Decimal  @db.Decimal(12, 2)
-  iamgeURL    String?
+  imageURL    String?
   available   Boolean  @default(true)
   active      Boolean  @default(true)
   isDailyMenu Boolean  @default(false)
