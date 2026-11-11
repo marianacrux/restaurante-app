@@ -1,36 +1,41 @@
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/prisma.js';
+import { AppError } from '../utils/AppError.js';
 
-export async function authenticate(req, res, next) {
+async function resolveUser(req) {
   const [scheme, token] = (req.headers.authorization ?? '').split(' ');
-  if (scheme !== 'Bearer' || !token) {
-    return res.status(401).json({ error: 'Debe iniciar sesión' });
-  }
+  if (scheme !== 'Bearer' || !token) return null;
 
   let payload;
   try {
-    payload = jwt.verify(token, process.env.JWT_SECRET); // comprueba firma y vencimiento
+    payload = jwt.verify(token, process.env.JWT_SECRET);
   } catch {
-    return res.status(401).json({ error: 'Sesión inválida o expirada' });
+    throw AppError.unauthorized('Sesión inválida o expirada');
   }
 
   const user = await prisma.user.findUnique({
     where: { id: Number(payload.sub) },
     select: { id: true, name: true, email: true, role: true, active: true },
   });
-  if (!user || !user.active) {
-    return res.status(401).json({ error: 'Usuario inactivo o inexistente' });
-  }
+  if (!user || !user.active) throw AppError.unauthorized('Usuario inactivo o inexistente');
+  return user;
+}
 
-  req.user = user; // las rutas siguientes ya saben quién hace la petición
+export async function authenticate(req, res, next) {
+  const user = await resolveUser(req);
+  if (!user) throw AppError.unauthorized('Debe iniciar sesión');
+  req.user = user;
+  next();
+}
+
+export async function optionalAuth(req, res, next) {
+  req.user = await resolveUser(req);
   next();
 }
 
 export function authorize(...roles) {
   return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'No tiene permisos para esta acción' });
-    }
+    if (!roles.includes(req.user.role)) throw AppError.forbidden();
     next();
   };
 }

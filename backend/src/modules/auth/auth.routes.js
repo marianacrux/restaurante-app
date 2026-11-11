@@ -18,9 +18,6 @@ router.get('/me', authenticate, (req, res) => {
   res.json({ user: req.user });
 });
 
-router.get('/solo-admin', authenticate, authorize('ADMIN'), (req, res) => {
-  res.json({ message: `Hola ${req.user.name}: eres administrador` });
-});
 
 export default router;
 

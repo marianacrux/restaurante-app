@@ -2,6 +2,7 @@ import express from 'express';
 import { prisma } from './config/prisma.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
+import categoryRoutes from './modules/categories/category.routes.js';
 
 export function createApp() {
   const app = express();
@@ -15,6 +16,7 @@ export function createApp() {
   });
 
   app.use('/api/auth', authRoutes);
+  app.use('/api/categories', categoryRoutes);
 
   app.use(notFoundHandler); // ninguna ruta coincidió 
   app.use(errorHandler);    // cualquier error que ocurra arriba llega aquí
