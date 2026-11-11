@@ -19,6 +19,47 @@ enum Role {
   DOMICILIARIO
 }
 
+/// Canal por el que LLEGÓ el pedido.
+enum OrderSource {
+  WHATSAPP
+  VITRINA
+  PUNTO_DE_VENTA
+  DOMICILIO // pedido telefónico para entregar en una dirección
+}
+
+/// Cómo se ENTREGA el pedido (independiente del canal).
+enum OrderType {
+  EN_LOCAL
+  PARA_LLEVAR
+  DOMICILIO
+}
+
+enum OrderStatus {
+  PENDIENTE
+  CONFIRMADO
+  EN_PREPARACION
+  LISTO
+  EN_CAMINO
+  ENTREGADO
+  CANCELADO
+}
+
+enum PaymentMethod {
+  EFECTIVO
+  TRANSFERENCIA
+  NEQUI
+  DAVIPLATA
+  TARJETA
+  CONTRAENTREGA_EFECTIVO
+}
+
+enum PaymentStatus {
+  PENDIENTE
+  PAGADO
+  PARCIAL
+  REEMBOLSADO
+}
+
 // Usuarios
 model User {
   id        Int      @id @default(autoincrement())
@@ -28,6 +69,10 @@ model User {
   role      Role
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  ordersCreated    Order[]
+  paymentsRecorded Payment[]
+  statusChanges    OrderStatusHistory[]
 }
 
 model Customer {
@@ -37,6 +82,8 @@ model Customer {
   address   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  orders Order[]
 }
 
 // CATALOGO
@@ -68,6 +115,94 @@ model Product {
 
   category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
+  orderItems OrderItem[]
+
   @@index([categoryId])
   @@index([active, available])
+}
+
+// PEDIDOS
+model Order {
+  id              Int            @id @default(autoincrement())
+  orderNumber     Int            @unique @default(autoincrement()) // número visible: "pedido 105"
+  source          OrderSource
+  type            OrderType      @default(EN_LOCAL)
+  status          OrderStatus    @default(PENDIENTE)
+  customerId      Int? // vacío = cliente de mostrador sin datos
+  subtotal        Decimal        @db.Decimal(12, 2)
+  discount        Decimal        @default(0) @db.Decimal(12, 2)
+  deliveryFee     Decimal        @default(0) @db.Decimal(12, 2)
+  total           Decimal        @db.Decimal(12, 2)
+  paymentMethod   PaymentMethod? // lo que el cliente ELIGIÓ (no significa que pagó)
+  paymentStatus   PaymentStatus  @default(PENDIENTE)
+  deliveryAddress String?
+  notes           String?
+  cancelReason    String?
+  createdById     Int? // vacío = lo creó el bot de WhatsApp
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  customer      Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  createdBy     User?                @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  items         OrderItem[]
+  payments      Payment[]
+  statusHistory OrderStatusHistory[]
+
+  @@index([status])
+  @@index([source])
+  @@index([paymentStatus])
+  @@index([createdAt])
+  @@index([customerId])
+}
+
+model OrderItem {
+  id          Int     @id @default(autoincrement())
+  orderId     Int
+  productId   Int? // SetNull: si algún día se borra el producto, el ítem sobrevive
+  productName String // copia histórica
+  unitPrice   Decimal @db.Decimal(12, 2) // copia histórica
+  quantity    Int
+  notes       String? // "sin cebolla"
+  subtotal    Decimal @db.Decimal(12, 2)
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model OrderStatusHistory {
+  id             Int          @id @default(autoincrement())
+  orderId        Int
+  previousStatus OrderStatus? // vacío en el primer registro (creación)
+  newStatus      OrderStatus
+  changedById    Int? // vacío = sistema o bot
+  note           String?
+  createdAt      DateTime     @default(now())
+
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedBy User? @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+}
+
+//PAGOS
+
+model Payment {
+  id           Int           @id @default(autoincrement())
+  orderId      Int
+  method       PaymentMethod
+  status       PaymentStatus @default(PAGADO)
+  amount       Decimal       @db.Decimal(12, 2)
+  reference    String? // número de transacción de Nequi, Daviplata…
+  notes        String?
+  recordedById Int // quién recibió el dinero (auditoría)
+  createdAt    DateTime      @default(now())
+
+  order      Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  recordedBy User  @relation(fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([method, createdAt])
 }
