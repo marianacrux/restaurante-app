@@ -1,0 +1,12 @@
+// Configuración de Prisma. En la Fase 4 agregaremos aquí las tablas (modelos).
+
+// Qué código debe generar Prisma: el cliente para JavaScript
+generator client {
+  provider = "prisma-client-js"
+}
+
+// A qué base de datos conectarse
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
