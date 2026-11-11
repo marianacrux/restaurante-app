@@ -1,0 +1,16 @@
+import express from 'express';
+
+const app = express();
+const PORT = 4000;
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'La API del restaurante está funcionando',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`API escuchando en http://localhost:${PORT}/api`);
+});
