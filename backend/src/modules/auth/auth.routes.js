@@ -1,6 +1,6 @@
 import {Router} from 'express';
 import {login} from './auth.service.js';
-import { authenticate, authorize } from '../../middlewares/auth.js';
+import { authenticate } from '../../middlewares/auth.js';
 import { validate } from '../../middlewares/validate.js';
 import { loginSchema } from './auth.validator.js';
 import { AppError } from '../../utils/AppError.js';
