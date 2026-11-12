@@ -25,4 +25,5 @@ export const productListQuerySchema = z.object({
   dailyMenu: booleanQuery.optional(),
   search: z.string().trim().max(80).optional(),
   includeInactive: booleanQuery.optional(),
+  categoryId: z.coerce.number({ error: 'categoryId debe ser numérico' }).int().positive().optional(),
 });
