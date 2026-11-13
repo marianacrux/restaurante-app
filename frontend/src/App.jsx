@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage.jsx';
 import StatusPage from './pages/StatusPage.jsx';
 import HomePage from './pages/HomePage.jsx';
 import OrdersPage from './pages/OrdersPage.jsx';
+import KitchenPage from './pages/kitchen/KitchenPage.jsx';
 
 export default function App() {
   return (
@@ -13,12 +14,15 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/estado" element={<StatusPage />} />
 
-      {/* Con sesión: todas comparten el menú lateral (AppLayout) */}
       <Route element={<ProtectedRoute />}>
+        {/* Cocina: pantalla completa, SIN el menú lateral */}
+        <Route element={<ProtectedRoute roles={['ADMIN', 'CAJERO', 'COCINA']} />}>
+          <Route path="/cocina" element={<KitchenPage />} />
+        </Route>
+
+        {/* Con el menú lateral */}
         <Route element={<AppLayout />}>
           <Route path="/inicio" element={<HomePage />} />
-
-          {/* Solo algunos roles */}
           <Route element={<ProtectedRoute roles={['ADMIN', 'CAJERO', 'COCINA']} />}>
             <Route path="/pedidos" element={<OrdersPage />} />
           </Route>

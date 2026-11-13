@@ -6,6 +6,7 @@ import styles from './AppLayout.module.css';
 const NAV_ITEMS = [
   { to: '/inicio', label: 'Inicio', roles: ['ADMIN', 'CAJERO', 'COCINA', 'DOMICILIARIO'] },
   { to: '/pedidos', label: 'Pedidos', roles: ['ADMIN', 'CAJERO', 'COCINA'] },
+  { to: '/cocina', label: 'Cocina', roles: ['ADMIN', 'CAJERO', 'COCINA'] },
 ];
 
 export default function AppLayout() {
