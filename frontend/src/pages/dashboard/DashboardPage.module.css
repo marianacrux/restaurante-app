@@ -1,0 +1,133 @@
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.title {
+  margin: 0;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+}
+
+.tools {
+  display: flex;
+  gap: 8px;
+}
+
+.date,
+.button {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.button {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.alert {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--tone-danger-bg);
+  color: var(--tone-danger);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.kpis {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+.card {
+  padding: 16px 20px 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+
+.cardTitle {
+  margin: 0 0 16px;
+  font-size: 1rem;
+}
+
+/* Embudo de estados: una casilla por estado */
+.pipeline {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.step {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--step-color);
+  border-radius: var(--radius-md);
+  color: inherit;
+  text-decoration: none;
+}
+
+.step:hover {
+  background: var(--color-bg);
+}
+
+.step[data-tone='neutral'] { --step-color: var(--tone-neutral); }
+.step[data-tone='info'] { --step-color: var(--tone-info); }
+.step[data-tone='warning'] { --step-color: var(--tone-warning); }
+.step[data-tone='success'] { --step-color: var(--tone-success); }
+.step[data-tone='accent'] { --step-color: var(--tone-accent); }
+.step[data-tone='done'] { --step-color: var(--tone-done); }
+.step[data-tone='danger'] { --step-color: var(--tone-danger); }
+
+.stepCount {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.stepLabel {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 1100px) {
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pipeline {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pipeline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
