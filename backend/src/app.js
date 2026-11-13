@@ -5,6 +5,7 @@ import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 import categoryRoutes from './modules/categories/category.routes.js';
 import productRoutes from './modules/products/product.routes.js';
 import orderRoutes from './modules/orders/order.routes.js';
+import dashboardRoutes from './modules/dashboard/dashboard.routes.js';
 
 export function createApp() {
   const app = express();
@@ -21,6 +22,7 @@ export function createApp() {
   app.use('/api/categories', categoryRoutes);
   app.use('/api/products', productRoutes);
   app.use('/api/orders', orderRoutes);
+  app.use('/api/dashboard', dashboardRoutes);
 
   app.use(notFoundHandler); // ninguna ruta coincidió 
   app.use(errorHandler);    // cualquier error que ocurra arriba llega aquí
