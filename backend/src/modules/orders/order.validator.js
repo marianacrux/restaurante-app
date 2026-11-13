@@ -51,3 +51,14 @@ export const listOrdersQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
+
+export const changeStatusSchema = z
+  .object({
+    status: prismaEnum(OrderStatus, 'Estado no válido'),
+    note: z.string().trim().max(300).optional(),
+    cancelReason: z.string().trim().min(3, 'Indique el motivo de la cancelación').max(300).optional(),
+  })
+  .refine((o) => o.status !== 'CANCELADO' || o.cancelReason, {
+    path: ['cancelReason'],
+    message: 'El motivo es obligatorio al cancelar',
+  });
