@@ -2,29 +2,41 @@ import { useEffect, useState } from 'react';
 import { api, getErrorMessage } from '../services/api.js';
 
 export default function StatusPage() {
-  // Estado: datos que, al cambiar, hacen que React vuelva a dibujar el componente
-  const [health, setHealth] = useState(null);   // la respuesta de la API
-  const [error, setError] = useState('');        // mensaje de error, si lo hay
-  const [loading, setLoading] = useState(true);  // ¿está cargando?
+  const [health, setHealth] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  // Cada vez que este número cambia, el efecto vuelve a consultar la API
+  const [reloadCount, setReloadCount] = useState(0);
 
-  async function load() {
-    setLoading(true);
-    setError('');
-    try {
-      const { data } = await api.get('/health');
-      setHealth(data);
-    } catch (err) {
-      setHealth(null);
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Efecto: código que se ejecuta DESPUÉS de dibujar. Con [] se ejecuta solo al aparecer la página.
   useEffect(() => {
-    load();
-  }, []);
+    let ignore = false; // si el componente desaparece antes de la respuesta, ignorarla
+
+    api
+      .get('/health')
+      .then(({ data }) => {
+        if (ignore) return;
+        setHealth(data);
+        setError('');
+      })
+      .catch((err) => {
+        if (ignore) return;
+        setHealth(null);
+        setError(getErrorMessage(err));
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+
+    // Función de limpieza: React la ejecuta antes de repetir el efecto o al quitar el componente
+    return () => {
+      ignore = true;
+    };
+  }, [reloadCount]); // el efecto se repite cuando reloadCount cambia
+
+  function reload() {
+    setLoading(true);                  // en un clic sí se puede cambiar el estado directamente
+    setReloadCount((n) => n + 1);      // y esto vuelve a disparar el efecto
+  }
 
   return (
     <main style={{ fontFamily: 'system-ui', maxWidth: 520, margin: '40px auto', padding: 16 }}>
@@ -42,7 +54,7 @@ export default function StatusPage() {
         </ul>
       )}
 
-      <button onClick={load} disabled={loading}>
+      <button onClick={reload} disabled={loading}>
         {loading ? 'Comprobando…' : 'Volver a comprobar'}
       </button>
     </main>
