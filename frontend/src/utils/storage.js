@@ -10,12 +10,14 @@ export const storage = {
     try {
       window.localStorage.setItem(key, value);
     } catch {
+      /* sin almacenamiento disponible: se ignora */
     }
   },
   remove(key) {
     try {
       window.localStorage.removeItem(key);
     } catch {
+      /* sin almacenamiento disponible: se ignora */
     }
   },
 };
