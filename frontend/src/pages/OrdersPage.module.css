@@ -1,0 +1,107 @@
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.title {
+  margin: 0;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+}
+
+.button {
+  padding: 9px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.alert {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--tone-danger-bg);
+  color: var(--tone-danger);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table th {
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.strong {
+  font-weight: 700;
+}
+
+.items {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text-muted);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--badge-color);
+  background: var(--badge-bg);
+}
+
+.badge[data-tone='neutral'] { --badge-color: var(--tone-neutral); --badge-bg: var(--tone-neutral-bg); }
+.badge[data-tone='info'] { --badge-color: var(--tone-info); --badge-bg: var(--tone-info-bg); }
+.badge[data-tone='warning'] { --badge-color: var(--tone-warning); --badge-bg: var(--tone-warning-bg); }
+.badge[data-tone='success'] { --badge-color: var(--tone-success); --badge-bg: var(--tone-success-bg); }
+.badge[data-tone='accent'] { --badge-color: var(--tone-accent); --badge-bg: var(--tone-accent-bg); }
+.badge[data-tone='done'] { --badge-color: var(--tone-done); --badge-bg: var(--tone-done-bg); }
+.badge[data-tone='danger'] { --badge-color: var(--tone-danger); --badge-bg: var(--tone-danger-bg); }

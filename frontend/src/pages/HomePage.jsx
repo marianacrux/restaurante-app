@@ -1,16 +1,15 @@
 import { useAuth } from '../hooks/useAuth.js';
-
-const ROLE_LABEL = { ADMIN: 'Administrador', CAJERO: 'Cajero', COCINA: 'Cocina', DOMICILIARIO: 'Domiciliario' };
+import { ROLE_LABEL } from '../utils/constants.js';
 
 export default function HomePage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   return (
-    <main style={{ fontFamily: 'system-ui', maxWidth: 520, margin: '40px auto', padding: 16 }}>
+    <>
       <h1>Hola, {user.name}</h1>
       <p>
-        Iniciaste sesión como <strong>{ROLE_LABEL[user.role]}</strong> ({user.email}).
+        Iniciaste sesión como <strong>{ROLE_LABEL[user.role]}</strong>. Usa el menú de la izquierda para moverte por el
+        sistema.
       </p>
-      <button onClick={logout}>Cerrar sesión</button>
-    </main>
+    </>
   );
 }
