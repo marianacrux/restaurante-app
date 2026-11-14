@@ -1,14 +1,14 @@
-import ui from '../styles/ui.module.css';
+import { Badge as MantineBadge } from '@mantine/core';
 
 /**
- * Etiqueta de color. Recibe una entrada de los diccionarios de constants.js
- * ({ label, tone }); si no la hay, muestra el valor tal cual.
+ * Etiqueta de estado. Recibe una entrada de constants.js ({ label, color }).
+ * Ej.: <Badge info={ORDER_STATUS[order.status]} />
  */
-export default function Badge({ info, value }) {
-  const { label, tone } = info ?? { label: value, tone: 'neutral' };
+export default function Badge({ info, value, size = 'md' }) {
+  const { label, color } = info ?? { label: value, color: 'gray' };
   return (
-    <span className={ui.badge} data-tone={tone}>
+    <MantineBadge color={color} size={size} variant="light">
       {label}
-    </span>
+    </MantineBadge>
   );
 }

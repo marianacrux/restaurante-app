@@ -39,7 +39,7 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--mantine-color-brand-6);
   font-weight: 800;
 }
 
@@ -70,7 +70,7 @@
   color: #54656f;
   background: #fff8;
   padding: 12px;
-  border-radius: var(--radius-md);
+  border-radius: var(--mantine-radius-md);
 }
 
 .bubble {
@@ -191,7 +191,7 @@
 }
 
 .info dt {
-  color: var(--color-text-muted);
+  color: var(--mantine-color-dimmed);
 }
 
 .info dd {
@@ -209,9 +209,9 @@
 .created {
   margin-top: 12px;
   padding: 12px;
-  border-radius: var(--radius-md);
-  background: var(--tone-success-bg);
-  color: var(--tone-success);
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-color-green-light);
+  color: var(--mantine-color-green-8);
   font-weight: 600;
 }
 
@@ -225,15 +225,15 @@
   display: grid;
   gap: 4px;
   font-size: 0.88rem;
-  color: var(--color-text-muted);
+  color: var(--mantine-color-dimmed);
 }
 
 .help code {
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
+  background: var(--mantine-color-default-hover);
+  border: 1px solid var(--mantine-color-default-border);
   border-radius: 4px;
   padding: 0 5px;
-  color: var(--color-text);
+  color: var(--mantine-color-text);
 }
 
 @media (max-width: 900px) {

@@ -1,16 +1,44 @@
 import { useEffect, useState } from 'react';
 import {
+  ActionIcon,
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Group,
+  Paper,
+  SegmentedControl,
+  Select,
+  SimpleGrid,
+  Skeleton,
+  Stack,
+  Switch,
+  Table,
+  Text,
+  TextInput,
+  Title,
+  Tooltip,
+} from '@mantine/core';
+import { IconAlertCircle, IconArrowDown, IconArrowUp, IconDeviceFloppy, IconExternalLink, IconPlus, IconTrash } from '@tabler/icons-react';
+import {
   fetchProducts,
   fetchPromotions,
   fetchScreenConfig,
   fetchScreens,
   saveScreenContent,
 } from '../../services/screens.service.js';
+import { useApi } from '../../hooks/useApi.js';
+import PageHeader from '../../components/PageHeader.jsx';
+import EmptyState from '../../components/EmptyState.jsx';
+import { notifyError, notifySuccess } from '../../utils/notify.js';
 import { getErrorMessage } from '../../services/api.js';
 import { formatMoney } from '../../utils/format.js';
-import ui from '../../styles/ui.module.css';
 
-const TYPE_LABEL = { PRODUCTO: 'Producto', PROMOCION: 'Promoción', ANUNCIO: 'Anuncio' };
+const TYPE = {
+  PRODUCTO: { label: 'Producto', color: 'blue' },
+  PROMOCION: { label: 'Promoción', color: 'brand' },
+  ANUNCIO: { label: 'Anuncio', color: 'violet' },
+};
 
 /** Convierte un contenido guardado en una fila editable. */
 const toDraft = (c) => ({
@@ -23,33 +51,19 @@ const toDraft = (c) => ({
   active: c.active,
 });
 
+const loadCatalog = () =>
+  Promise.all([fetchScreens(), fetchProducts(), fetchPromotions()]).then(([screens, products, promotions]) => ({ screens, products, promotions }));
+
 export default function ScreensAdminPage() {
-  const [screens, setScreens] = useState([]);
-  const [catalog, setCatalog] = useState({ products: [], promotions: [] });
-  const [number, setNumber] = useState(1);
+  const { data: catalog, error: catalogError } = useApi(loadCatalog);
+
+  const [number, setNumber] = useState('1');
   const [name, setName] = useState('');
   const [items, setItems] = useState(null); // filas editables de la pantalla elegida
-  const [toAdd, setToAdd] = useState({ productId: '', promotionId: '', title: '', description: '' });
+  const [dirty, setDirty] = useState(false);
   const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
+  const [toAdd, setToAdd] = useState({ productId: null, promotionId: null, title: '', description: '' });
   const [saving, setSaving] = useState(false);
-
-  // Una vez: lista de pantallas, productos y promociones
-  useEffect(() => {
-    let ignore = false;
-    Promise.all([fetchScreens(), fetchProducts(), fetchPromotions()])
-      .then(([screenList, products, promotions]) => {
-        if (ignore) return;
-        setScreens(screenList);
-        setCatalog({ products, promotions });
-      })
-      .catch((err) => {
-        if (!ignore) setError(getErrorMessage(err));
-      });
-    return () => {
-      ignore = true;
-    };
-  }, []);
 
   // Cada vez que se elige otra pantalla: su configuración
   useEffect(() => {
@@ -59,6 +73,7 @@ export default function ScreensAdminPage() {
         if (ignore) return;
         setName(config.name);
         setItems(config.contents.map(toDraft));
+        setDirty(false);
         setError('');
       })
       .catch((err) => {
@@ -69,47 +84,48 @@ export default function ScreensAdminPage() {
     };
   }, [number]);
 
-  const productById = new Map(catalog.products.map((p) => [p.id, p]));
-  const promotionById = new Map(catalog.promotions.map((p) => [p.id, p]));
+  const productById = new Map((catalog?.products ?? []).map((p) => [p.id, p]));
+  const promotionById = new Map((catalog?.promotions ?? []).map((p) => [p.id, p]));
 
   function describe(item) {
     if (item.contentType === 'PRODUCTO') {
       const p = productById.get(item.productId);
-      if (!p) return 'Producto retirado';
-      return `${p.name} · ${formatMoney(p.price)}${p.available ? '' : ' · AGOTADO'}`;
+      if (!p) return { title: 'Producto retirado', warning: true };
+      return { title: p.name, detail: formatMoney(p.price), warning: !p.available && 'Agotado' };
     }
     if (item.contentType === 'PROMOCION') {
       const p = promotionById.get(item.promotionId);
-      if (!p) return 'Promoción eliminada';
-      return `${p.name}${p.finalPrice ? ` · ${formatMoney(p.finalPrice)}` : ''}${p.live ? '' : ' · NO VIGENTE'}`;
+      if (!p) return { title: 'Promoción eliminada', warning: true };
+      return { title: p.name, detail: p.finalPrice ? formatMoney(p.finalPrice) : p.description, warning: !p.live && 'No vigente' };
     }
-    return `${item.title}${item.description ? ` — ${item.description}` : ''}`;
+    return { title: item.title, detail: item.description };
   }
 
   // ---------- edición local (nada se guarda hasta pulsar "Guardar")
-  const update = (key, changes) => setItems((list) => list.map((i) => (i.key === key ? { ...i, ...changes } : i)));
-  const remove = (key) => setItems((list) => list.filter((i) => i.key !== key));
-  function move(index, delta) {
-    setItems((list) => {
+  const edit = (fn) => {
+    setItems(fn);
+    setDirty(true);
+  };
+  const update = (key, changes) => edit((list) => list.map((i) => (i.key === key ? { ...i, ...changes } : i)));
+  const remove = (key) => edit((list) => list.filter((i) => i.key !== key));
+  const move = (index, delta) =>
+    edit((list) => {
       const next = [...list];
       const [item] = next.splice(index, 1);
       next.splice(index + delta, 0, item);
       return next;
     });
-  }
   function add(contentType) {
     const base = { key: crypto.randomUUID(), contentType, productId: null, promotionId: null, title: '', description: '', active: true };
     if (contentType === 'PRODUCTO') base.productId = Number(toAdd.productId);
     if (contentType === 'PROMOCION') base.promotionId = Number(toAdd.promotionId);
     if (contentType === 'ANUNCIO') Object.assign(base, { title: toAdd.title.trim(), description: toAdd.description.trim() });
-    setItems((list) => [...list, base]);
-    setToAdd({ productId: '', promotionId: '', title: '', description: '' });
+    edit((list) => [...list, base]);
+    setToAdd({ productId: null, promotionId: null, title: '', description: '' });
   }
 
   async function save() {
     setSaving(true);
-    setError('');
-    setMessage('');
     try {
       const config = await saveScreenContent(number, {
         name,
@@ -123,187 +139,204 @@ export default function ScreensAdminPage() {
         })),
       });
       setItems(config.contents.map(toDraft));
-      setScreens((list) => list.map((s) => (s.screenNumber === number ? { ...s, name: config.name } : s)));
-      setMessage(`Pantalla ${number} guardada. Los televisores la verán en menos de 30 s.`);
+      setDirty(false);
+      notifySuccess('Los televisores lo mostrarán en menos de 30 segundos.', `Pantalla ${number} guardada`);
     } catch (err) {
-      setError(getErrorMessage(err));
+      notifyError(err);
     } finally {
       setSaving(false);
     }
   }
 
+  function changeScreen(value) {
+    if (dirty && !window.confirm('Tienes cambios sin guardar en esta pantalla. ¿Descartarlos?')) return;
+    setItems(null);
+    setNumber(value);
+  }
+
   return (
     <>
-      <header className={ui.header}>
-        <div>
-          <h1 className={ui.title}>Pantallas</h1>
-          <p className={ui.subtitle}>Contenido de los televisores del restaurante</p>
-        </div>
-        <div className={ui.row}>
-          {screens.map((s) => (
-            <button
-              key={s.id}
-              className={`${ui.button} ${s.screenNumber === number ? ui.primary : ''}`}
-              onClick={() => {
-                setMessage('');
-                setItems(null);
-                setNumber(s.screenNumber);
-              }}
-            >
-              {s.screenNumber}. {s.name}
-            </button>
-          ))}
-        </div>
-      </header>
+      <PageHeader title="Pantallas" subtitle="Contenido de los televisores del restaurante">
+        <Button component="a" href={`/pantalla/${number}`} target="_blank" rel="noreferrer" variant="default" leftSection={<IconExternalLink size={16} />}>
+          Abrir pantalla {number}
+        </Button>
+        <Button leftSection={<IconDeviceFloppy size={16} />} onClick={save} loading={saving} disabled={!dirty || !items || name.trim().length < 2}>
+          Guardar cambios
+        </Button>
+      </PageHeader>
 
-      {error && <p className={ui.alert}>{error}</p>}
-      {message && <p className={ui.success}>{message}</p>}
-      {!items && !error && <p>Cargando…</p>}
+      {(error || catalogError) && (
+        <Alert color="red" icon={<IconAlertCircle size={18} />} mb="md">
+          {error || catalogError}
+        </Alert>
+      )}
+
+      {catalog && (
+        <SegmentedControl
+          fullWidth
+          mb="md"
+          value={number}
+          onChange={changeScreen}
+          data={catalog.screens.map((s) => ({ value: String(s.screenNumber), label: `${s.screenNumber}. ${s.name}` }))}
+        />
+      )}
+
+      {!items && !error && <Skeleton h={300} radius="lg" />}
 
       {items && (
-        <>
-          <section className={`${ui.card} ${ui.section}`}>
-            <div className={ui.row} style={{ justifyContent: 'space-between', marginBottom: 12 }}>
-              <label className={ui.field}>
-                Nombre de la pantalla
-                <input className={ui.input} value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
-              </label>
-              <div className={ui.row}>
-                <a className={ui.button} href={`/pantalla/${number}`} target="_blank" rel="noreferrer">
-                  Abrir pantalla ↗
-                </a>
-                <button className={`${ui.button} ${ui.primary}`} onClick={save} disabled={saving || name.trim().length < 2}>
-                  {saving ? 'Guardando…' : 'Guardar cambios'}
-                </button>
-              </div>
-            </div>
+        <Stack gap="md">
+          <Paper withBorder p="md">
+            <Group justify="space-between" align="flex-end" mb="md">
+              <TextInput
+                label="Nombre de la pantalla"
+                value={name}
+                maxLength={80}
+                onChange={(e) => {
+                  setName(e.currentTarget.value);
+                  setDirty(true);
+                }}
+                w={320}
+              />
+              {dirty && (
+                <Badge color="yellow" size="lg" variant="light">
+                  Cambios sin guardar
+                </Badge>
+              )}
+            </Group>
 
             {items.length === 0 ? (
-              <p className={ui.empty}>Esta pantalla no tiene contenido.</p>
+              <EmptyState title="Esta pantalla no tiene contenido" description="Agrega productos, promociones o anuncios abajo." />
             ) : (
-              <div className={ui.tableWrap}>
-                <table className={ui.table}>
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Tipo</th>
-                      <th>Contenido</th>
-                      <th>Visible</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item, index) => (
-                      <tr key={item.key} style={{ opacity: item.active ? 1 : 0.5 }}>
-                        <td>{index + 1}</td>
-                        <td>{TYPE_LABEL[item.contentType]}</td>
-                        <td>{describe(item)}</td>
-                        <td>
-                          <input
-                            type="checkbox"
-                            checked={item.active}
-                            onChange={(e) => update(item.key, { active: e.target.checked })}
-                            aria-label="Visible"
-                          />
-                        </td>
-                        <td className={ui.row} style={{ flexWrap: 'nowrap' }}>
-                          <button className={`${ui.button} ${ui.small}`} disabled={index === 0} onClick={() => move(index, -1)} aria-label="Subir">
-                            ↑
-                          </button>
-                          <button
-                            className={`${ui.button} ${ui.small}`}
-                            disabled={index === items.length - 1}
-                            onClick={() => move(index, 1)}
-                            aria-label="Bajar"
-                          >
-                            ↓
-                          </button>
-                          <button className={`${ui.button} ${ui.small} ${ui.danger}`} onClick={() => remove(item.key)}>
-                            Quitar
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Table.ScrollContainer minWidth={640}>
+                <Table>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th w={40}>#</Table.Th>
+                      <Table.Th w={120}>Tipo</Table.Th>
+                      <Table.Th>Contenido</Table.Th>
+                      <Table.Th w={90}>Visible</Table.Th>
+                      <Table.Th w={130} />
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {items.map((item, index) => {
+                      const info = describe(item);
+                      return (
+                        <Table.Tr key={item.key} opacity={item.active ? 1 : 0.5}>
+                          <Table.Td c="dimmed">{index + 1}</Table.Td>
+                          <Table.Td>
+                            <Badge color={TYPE[item.contentType].color}>{TYPE[item.contentType].label}</Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Group gap="xs">
+                              <Text fw={600} size="sm">
+                                {info.title}
+                              </Text>
+                              {info.warning && (
+                                <Badge color="red" size="xs">
+                                  {info.warning === true ? 'Revisar' : info.warning}
+                                </Badge>
+                              )}
+                            </Group>
+                            {info.detail && (
+                              <Text size="xs" c="dimmed">
+                                {info.detail}
+                              </Text>
+                            )}
+                          </Table.Td>
+                          <Table.Td>
+                            <Switch checked={item.active} onChange={(e) => update(item.key, { active: e.currentTarget.checked })} aria-label="Visible" />
+                          </Table.Td>
+                          <Table.Td>
+                            <Group gap={4} wrap="nowrap">
+                              <Tooltip label="Subir">
+                                <ActionIcon variant="subtle" color="gray" disabled={index === 0} onClick={() => move(index, -1)} aria-label="Subir">
+                                  <IconArrowUp size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                              <Tooltip label="Bajar">
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="gray"
+                                  disabled={index === items.length - 1}
+                                  onClick={() => move(index, 1)}
+                                  aria-label="Bajar"
+                                >
+                                  <IconArrowDown size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                              <Tooltip label="Quitar">
+                                <ActionIcon variant="subtle" color="red" onClick={() => remove(item.key)} aria-label="Quitar">
+                                  <IconTrash size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      );
+                    })}
+                  </Table.Tbody>
+                </Table>
+              </Table.ScrollContainer>
             )}
-          </section>
+          </Paper>
 
-          <section className={ui.grid}>
-            <div className={ui.card}>
-              <h2 className={ui.cardTitle}>Agregar producto</h2>
-              <p className={ui.muted}>El precio y si está agotado se leen en vivo del catálogo.</p>
-              <div className={ui.row}>
-                <select
-                  className={ui.input}
-                  style={{ flex: 1 }}
+          {catalog && (
+            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+              <Card padding="lg">
+                <Title order={5}>Agregar producto</Title>
+                <Text size="sm" c="dimmed" mb="sm">
+                  El precio y si está agotado se leen en vivo del catálogo.
+                </Text>
+                <Select
+                  placeholder="Buscar producto…"
+                  searchable
+                  data={catalog.products.map((p) => ({ value: String(p.id), label: `${p.name} · ${formatMoney(p.price)}` }))}
                   value={toAdd.productId}
-                  onChange={(e) => setToAdd({ ...toAdd, productId: e.target.value })}
-                  aria-label="Producto"
-                >
-                  <option value="">Elegir…</option>
-                  {catalog.products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} · {formatMoney(p.price)}
-                    </option>
-                  ))}
-                </select>
-                <button className={ui.button} disabled={!toAdd.productId} onClick={() => add('PRODUCTO')}>
+                  onChange={(v) => setToAdd({ ...toAdd, productId: v })}
+                  nothingFoundMessage="Sin resultados"
+                />
+                <Button mt="sm" variant="light" leftSection={<IconPlus size={16} />} disabled={!toAdd.productId} onClick={() => add('PRODUCTO')}>
                   Agregar
-                </button>
-              </div>
-            </div>
+                </Button>
+              </Card>
 
-            <div className={ui.card}>
-              <h2 className={ui.cardTitle}>Agregar promoción</h2>
-              <p className={ui.muted}>Las vencidas no se muestran en el televisor.</p>
-              <div className={ui.row}>
-                <select
-                  className={ui.input}
-                  style={{ flex: 1 }}
+              <Card padding="lg">
+                <Title order={5}>Agregar promoción</Title>
+                <Text size="sm" c="dimmed" mb="sm">
+                  Las vencidas no se muestran en el televisor.
+                </Text>
+                <Select
+                  placeholder="Elegir promoción…"
+                  data={catalog.promotions.map((p) => ({ value: String(p.id), label: `${p.name}${p.live ? '' : ' (no vigente)'}` }))}
                   value={toAdd.promotionId}
-                  onChange={(e) => setToAdd({ ...toAdd, promotionId: e.target.value })}
-                  aria-label="Promoción"
-                >
-                  <option value="">Elegir…</option>
-                  {catalog.promotions.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                      {p.live ? '' : ' (no vigente)'}
-                    </option>
-                  ))}
-                </select>
-                <button className={ui.button} disabled={!toAdd.promotionId} onClick={() => add('PROMOCION')}>
+                  onChange={(v) => setToAdd({ ...toAdd, promotionId: v })}
+                />
+                <Button mt="sm" variant="light" leftSection={<IconPlus size={16} />} disabled={!toAdd.promotionId} onClick={() => add('PROMOCION')}>
                   Agregar
-                </button>
-              </div>
-            </div>
+                </Button>
+              </Card>
 
-            <div className={ui.card}>
-              <h2 className={ui.cardTitle}>Agregar anuncio</h2>
-              <div style={{ display: 'grid', gap: 8 }}>
-                <input
-                  className={ui.input}
-                  placeholder="Título (obligatorio)"
-                  maxLength={120}
-                  value={toAdd.title}
-                  onChange={(e) => setToAdd({ ...toAdd, title: e.target.value })}
-                />
-                <input
-                  className={ui.input}
-                  placeholder="Texto (opcional)"
-                  maxLength={300}
-                  value={toAdd.description}
-                  onChange={(e) => setToAdd({ ...toAdd, description: e.target.value })}
-                />
-                <button className={ui.button} disabled={!toAdd.title.trim()} onClick={() => add('ANUNCIO')}>
+              <Card padding="lg">
+                <Title order={5} mb="sm">
+                  Agregar anuncio
+                </Title>
+                <Stack gap="xs">
+                  <TextInput placeholder="Título (obligatorio)" maxLength={120} value={toAdd.title} onChange={(e) => setToAdd({ ...toAdd, title: e.currentTarget.value })} />
+                  <TextInput
+                    placeholder="Texto (opcional)"
+                    maxLength={300}
+                    value={toAdd.description}
+                    onChange={(e) => setToAdd({ ...toAdd, description: e.currentTarget.value })}
+                  />
+                </Stack>
+                <Button mt="sm" variant="light" leftSection={<IconPlus size={16} />} disabled={!toAdd.title.trim()} onClick={() => add('ANUNCIO')}>
                   Agregar
-                </button>
-              </div>
-            </div>
-          </section>
-        </>
+                </Button>
+              </Card>
+            </SimpleGrid>
+          )}
+        </Stack>
       )}
     </>
   );

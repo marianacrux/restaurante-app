@@ -16,7 +16,9 @@ import promotionRoutes from './modules/screens/promotion.routes.js';
 export function createApp() {
   const app = express();
 
-  app.use(express.json());
+  app.disable('x-powered-by'); // no anunciar que el servidor usa Express
+  app.set('trust proxy', 'loopback'); // req.ip correcto detrás del proxy de Vite (para el límite de intentos de login)
+  app.use(express.json({ limit: '100kb' }));
 
   app.get('/api/health', async (req, res) => {
     const [row] = await prisma.$queryRaw`

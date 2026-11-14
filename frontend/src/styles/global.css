@@ -1,20 +1,10 @@
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
+/* Mantine ya trae su "reset" y la tipografía (ver theme.js).
+   Aquí solo van ajustes globales mínimos. */
 body {
   margin: 0;
-  font-family: var(--font-sans);
-  background: var(--color-bg);
-  color: var(--color-text);
-  line-height: 1.5;
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
+/* Números alineados en tablas y montos */
+.tabular {
+  font-variant-numeric: tabular-nums;
 }

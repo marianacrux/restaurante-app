@@ -1,12 +1,34 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import {
+  Alert,
+  Button,
+  Group,
+  Modal,
+  NumberInput,
+  Paper,
+  Select,
+  SimpleGrid,
+  Skeleton,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+  Textarea,
+  Title,
+} from '@mantine/core';
+import { IconAlertCircle, IconCash, IconClockDollar, IconReceiptRefund, IconRefresh } from '@tabler/icons-react';
 import { fetchOrders } from '../../services/orders.service.js';
 import { fetchPayments, refundPayment, registerPayment } from '../../services/payments.service.js';
-import { getErrorMessage } from '../../services/api.js';
+import { useApi } from '../../hooks/useApi.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import { can } from '../../auth/access.js';
+import PageHeader from '../../components/PageHeader.jsx';
+import StatCard from '../../components/StatCard.jsx';
 import Badge from '../../components/Badge.jsx';
-import { ORDER_SOURCE, ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS } from '../../utils/constants.js';
+import EmptyState from '../../components/EmptyState.jsx';
+import { notifyError, notifySuccess } from '../../utils/notify.js';
+import { ORDER_SOURCE, ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS, toOptions } from '../../utils/constants.js';
 import { formatMoney, formatTime, todayLocal } from '../../utils/format.js';
-import ui from '../../styles/ui.module.css';
 
 // Todos los estados menos CANCELADO: un pedido cancelado no se cobra.
 const BILLABLE = 'PENDIENTE,CONFIRMADO,EN_PREPARACION,LISTO,EN_CAMINO,ENTREGADO';
@@ -20,260 +42,289 @@ function balanceOf(order) {
 export default function PaymentsPage() {
   const { user } = useAuth();
   const [day, setDay] = useState(todayLocal);
-  const [data, setData] = useState(null); // { pending, payments }
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
-  const [form, setForm] = useState(null); // { orderId, orderNumber, method, amount, reference }
-  const [busy, setBusy] = useState(false);
-  const [reloadCount, setReloadCount] = useState(0);
+  const load = useCallback(
+    () =>
+      Promise.all([
+        fetchOrders({ paymentStatus: 'PENDIENTE,PARCIAL', status: BILLABLE, pageSize: 100 }),
+        fetchPayments({ from: day, to: day, pageSize: 100 }),
+      ]).then(([orders, payments]) => ({ pending: orders.data, payments })),
+    [day],
+  );
+  const { data, error, loading, reload } = useApi(load, { interval: 30000 });
 
-  useEffect(() => {
-    let ignore = false;
-    Promise.all([
-      fetchOrders({ paymentStatus: 'PENDIENTE,PARCIAL', status: BILLABLE, pageSize: 100 }),
-      fetchPayments({ from: day, to: day, pageSize: 100 }),
-    ])
-      .then(([orders, payments]) => {
-        if (ignore) return;
-        setData({ pending: orders.data, payments });
-        setError('');
-      })
-      .catch((err) => {
-        if (!ignore) setError(getErrorMessage(err));
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [day, reloadCount]);
+  const [form, setForm] = useState(null); // cobro en curso (abre la ventana)
+  const [refunding, setRefunding] = useState(null); // pago a reembolsar
+  const [refundReason, setRefundReason] = useState('');
+  const [busy, setBusy] = useState(false);
 
   function openForm(order) {
     const { balance } = balanceOf(order);
-    setMessage('');
-    setForm({
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      method: order.paymentMethod ?? 'EFECTIVO', // lo que el cliente dijo que usaría
-      amount: String(balance),
-      reference: '',
-    });
+    setForm({ order, balance, method: order.paymentMethod ?? 'EFECTIVO', amount: balance, reference: '' });
   }
 
   async function submitPayment(e) {
     e.preventDefault();
     setBusy(true);
-    setError('');
     try {
-      await registerPayment({
-        orderId: form.orderId,
-        method: form.method,
-        amount: Number(form.amount),
-        reference: form.reference || null,
-      });
-      setMessage(`Pago de ${formatMoney(form.amount)} registrado en el pedido #${form.orderNumber}`);
+      await registerPayment({ orderId: form.order.id, method: form.method, amount: Number(form.amount), reference: form.reference || null });
+      notifySuccess(`${formatMoney(form.amount)} registrados en el pedido #${form.order.orderNumber}`, 'Pago registrado');
       setForm(null);
-      setReloadCount((n) => n + 1);
     } catch (err) {
-      setError(getErrorMessage(err));
+      notifyError(err);
     } finally {
       setBusy(false);
+      reload();
     }
   }
 
-  async function refund(payment) {
-    const reason = window.prompt(`Motivo del reembolso de ${formatMoney(payment.amount)} (pedido #${payment.order.orderNumber}):`);
-    if (!reason) return;
+  async function submitRefund() {
     setBusy(true);
-    setError('');
     try {
-      await refundPayment(payment.id, reason);
-      setMessage(`Pago reembolsado (pedido #${payment.order.orderNumber})`);
-      setReloadCount((n) => n + 1);
+      await refundPayment(refunding.id, refundReason.trim());
+      notifySuccess(`Pago del pedido #${refunding.order.orderNumber} reembolsado`);
+      setRefunding(null);
+      setRefundReason('');
     } catch (err) {
-      setError(getErrorMessage(err));
+      notifyError(err);
     } finally {
       setBusy(false);
+      reload();
     }
   }
+
+  const pendingTotal = data?.pending.reduce((sum, o) => sum + balanceOf(o).balance, 0) ?? 0;
 
   return (
     <>
-      <header className={ui.header}>
-        <div>
-          <h1 className={ui.title}>Pagos</h1>
-          <p className={ui.subtitle}>Un pago se registra solo cuando el dinero se recibe</p>
-        </div>
-        <button className={ui.button} onClick={() => setReloadCount((n) => n + 1)} disabled={busy}>
+      <PageHeader title="Pagos" subtitle="Un pago se registra solo cuando el dinero se recibe">
+        <Button variant="default" leftSection={<IconRefresh size={16} />} onClick={reload}>
           Actualizar
-        </button>
-      </header>
+        </Button>
+      </PageHeader>
 
-      {error && <p className={ui.alert}>{error}</p>}
-      {message && <p className={ui.success}>{message}</p>}
-      {!data && !error && <p>Cargando…</p>}
+      {error && (
+        <Alert color="red" icon={<IconAlertCircle size={18} />} mb="md">
+          {error}
+        </Alert>
+      )}
+      {loading && <Skeleton h={300} radius="lg" />}
 
       {data && (
-        <>
-          {/* ---------------- Formulario de cobro (arriba, para que se vea al pulsar "Cobrar") ---------------- */}
-          {form && (
-            <section className={`${ui.card} ${ui.section}`}>
-              <h2 className={ui.cardTitle}>Registrar pago · pedido #{form.orderNumber}</h2>
-              <form className={ui.row} style={{ alignItems: 'flex-end' }} onSubmit={submitPayment}>
-                <label className={ui.field}>
-                  Método
-                  <select
-                    className={ui.input}
-                    value={form.method}
-                    onChange={(e) => setForm({ ...form, method: e.target.value })}
-                  >
-                    {Object.entries(PAYMENT_METHOD).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className={ui.field}>
-                  Monto
-                  <input
-                    className={ui.input}
-                    type="number"
-                    min="1"
-                    step="any"
-                    required
-                    value={form.amount}
-                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                  />
-                </label>
-                <label className={ui.field}>
-                  Referencia (opcional)
-                  <input
-                    className={ui.input}
-                    placeholder="N.º de transacción"
-                    maxLength={100}
-                    value={form.reference}
-                    onChange={(e) => setForm({ ...form, reference: e.target.value })}
-                  />
-                </label>
-                <button className={`${ui.button} ${ui.primary}`} disabled={busy}>
-                  {busy ? 'Guardando…' : 'Registrar pago'}
-                </button>
-                <button type="button" className={ui.button} onClick={() => setForm(null)}>
-                  Cancelar
-                </button>
-              </form>
-            </section>
-          )}
+        <Stack gap="xl">
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+            <StatCard label="Por cobrar" value={formatMoney(pendingTotal)} hint={`${data.pending.length} pedidos con saldo`} icon={IconClockDollar} color="yellow" />
+            <StatCard
+              label={day === todayLocal() ? 'Recibido hoy' : `Recibido el ${day}`}
+              value={formatMoney(data.payments.summary.collected)}
+              hint={`${data.payments.summary.payments} pagos vigentes`}
+              icon={IconCash}
+              color="green"
+            />
+          </SimpleGrid>
 
           {/* ---------------- Por cobrar ---------------- */}
-          <section className={ui.section}>
-            <h2 className={ui.sectionTitle}>Por cobrar ({data.pending.length})</h2>
+          <div>
+            <Title order={4} mb="sm">
+              Pedidos por cobrar
+            </Title>
             {data.pending.length === 0 ? (
-              <p className={ui.empty}>No hay pedidos con saldo pendiente.</p>
+              <EmptyState title="No hay pedidos con saldo pendiente" icon={IconCash} />
             ) : (
-              <div className={ui.tableWrap}>
-                <table className={ui.table}>
-                  <thead>
-                    <tr>
-                      <th>Pedido</th>
-                      <th>Cliente</th>
-                      <th>Canal</th>
-                      <th>Estado</th>
-                      <th className={ui.num}>Total</th>
-                      <th className={ui.num}>Pagado</th>
-                      <th className={ui.num}>Saldo</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.pending.map((order) => {
-                      const { paid, balance } = balanceOf(order);
-                      return (
-                        <tr key={order.id}>
-                          <td className={ui.strong}>#{order.orderNumber}</td>
-                          <td>{order.customer?.name ?? 'Mostrador'}</td>
-                          <td>{ORDER_SOURCE[order.source]}</td>
-                          <td>
-                            <Badge info={ORDER_STATUS[order.status]} />
-                          </td>
-                          <td className={ui.num}>{formatMoney(order.total)}</td>
-                          <td className={ui.num}>{formatMoney(paid)}</td>
-                          <td className={`${ui.num} ${ui.strong}`}>{formatMoney(balance)}</td>
-                          <td>
-                            <button className={`${ui.button} ${ui.small} ${ui.primary}`} onClick={() => openForm(order)}>
-                              Cobrar
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <Paper withBorder>
+                <Table.ScrollContainer minWidth={820}>
+                  <Table>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Pedido</Table.Th>
+                        <Table.Th>Cliente</Table.Th>
+                        <Table.Th>Canal</Table.Th>
+                        <Table.Th>Estado</Table.Th>
+                        <Table.Th ta="right">Total</Table.Th>
+                        <Table.Th ta="right">Pagado</Table.Th>
+                        <Table.Th ta="right">Saldo</Table.Th>
+                        <Table.Th />
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {data.pending.map((order) => {
+                        const { paid, balance } = balanceOf(order);
+                        return (
+                          <Table.Tr key={order.id}>
+                            <Table.Td fw={700}>#{order.orderNumber}</Table.Td>
+                            <Table.Td>{order.customer?.name ?? 'Mostrador'}</Table.Td>
+                            <Table.Td>{ORDER_SOURCE[order.source]}</Table.Td>
+                            <Table.Td>
+                              <Badge info={ORDER_STATUS[order.status]} size="sm" />
+                            </Table.Td>
+                            <Table.Td ta="right" className="tabular">
+                              {formatMoney(order.total)}
+                            </Table.Td>
+                            <Table.Td ta="right" className="tabular" c="dimmed">
+                              {formatMoney(paid)}
+                            </Table.Td>
+                            <Table.Td ta="right" className="tabular" fw={700}>
+                              {formatMoney(balance)}
+                            </Table.Td>
+                            <Table.Td>
+                              {can(user, 'payments.register') && (
+                                <Button size="xs" onClick={() => openForm(order)}>
+                                  Cobrar
+                                </Button>
+                              )}
+                            </Table.Td>
+                          </Table.Tr>
+                        );
+                      })}
+                    </Table.Tbody>
+                  </Table>
+                </Table.ScrollContainer>
+              </Paper>
             )}
-          </section>
+          </div>
 
           {/* ---------------- Pagos del día ---------------- */}
-          <section className={ui.section}>
-            <div className={ui.header} style={{ marginBottom: 12 }}>
-              <h2 className={ui.sectionTitle} style={{ margin: 0 }}>
-                Pagos registrados · recibido {formatMoney(data.payments.summary.collected)}
-              </h2>
-              <input
+          <div>
+            <Group justify="space-between" mb="sm">
+              <Title order={4}>Pagos registrados</Title>
+              <TextInput
                 type="date"
-                className={ui.input}
                 value={day}
                 max={todayLocal()}
-                onChange={(e) => e.target.value && setDay(e.target.value)}
+                onChange={(e) => e.currentTarget.value && setDay(e.currentTarget.value)}
                 aria-label="Día de los pagos"
               />
-            </div>
+            </Group>
             {data.payments.data.length === 0 ? (
-              <p className={ui.empty}>No hay pagos registrados ese día.</p>
+              <EmptyState title="No hay pagos registrados ese día" />
             ) : (
-              <div className={ui.tableWrap}>
-                <table className={ui.table}>
-                  <thead>
-                    <tr>
-                      <th>Hora</th>
-                      <th>Pedido</th>
-                      <th>Método</th>
-                      <th>Referencia</th>
-                      <th className={ui.num}>Monto</th>
-                      <th>Estado</th>
-                      <th>Registró</th>
-                      {user.role === 'ADMIN' && <th />}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.payments.data.map((p) => (
-                      <tr key={p.id}>
-                        <td>{formatTime(p.createdAt)}</td>
-                        <td className={ui.strong}>#{p.order.orderNumber}</td>
-                        <td>{PAYMENT_METHOD[p.method]}</td>
-                        <td>{p.reference ?? '—'}</td>
-                        <td className={ui.num}>{formatMoney(p.amount)}</td>
-                        <td>
-                          <Badge info={PAYMENT_STATUS[p.status]} />
-                        </td>
-                        <td>{p.recordedBy.name}</td>
-                        {user.role === 'ADMIN' && (
-                          <td>
-                            {p.status === 'PAGADO' && (
-                              <button className={`${ui.button} ${ui.small} ${ui.danger}`} disabled={busy} onClick={() => refund(p)}>
+              <Paper withBorder>
+                <Table.ScrollContainer minWidth={820}>
+                  <Table>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Hora</Table.Th>
+                        <Table.Th>Pedido</Table.Th>
+                        <Table.Th>Método</Table.Th>
+                        <Table.Th>Referencia</Table.Th>
+                        <Table.Th ta="right">Monto</Table.Th>
+                        <Table.Th>Estado</Table.Th>
+                        <Table.Th>Registró</Table.Th>
+                        <Table.Th />
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {data.payments.data.map((p) => (
+                        <Table.Tr key={p.id}>
+                          <Table.Td>{formatTime(p.createdAt)}</Table.Td>
+                          <Table.Td fw={700}>#{p.order.orderNumber}</Table.Td>
+                          <Table.Td>{PAYMENT_METHOD[p.method]}</Table.Td>
+                          <Table.Td c="dimmed">{p.reference ?? '—'}</Table.Td>
+                          <Table.Td ta="right" className="tabular" fw={600}>
+                            {formatMoney(p.amount)}
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge info={PAYMENT_STATUS[p.status]} size="sm" />
+                          </Table.Td>
+                          <Table.Td>{p.recordedBy.name}</Table.Td>
+                          <Table.Td>
+                            {can(user, 'payments.refund') && p.status === 'PAGADO' && (
+                              <Button size="xs" variant="subtle" color="red" leftSection={<IconReceiptRefund size={14} />} onClick={() => setRefunding(p)}>
                                 Reembolsar
-                              </button>
+                              </Button>
                             )}
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </Table.ScrollContainer>
+              </Paper>
             )}
-          </section>
-        </>
+          </div>
+        </Stack>
       )}
+
+      {/* ---------------- Ventana: registrar pago ---------------- */}
+      <Modal opened={Boolean(form)} onClose={() => setForm(null)} title={`Cobrar pedido #${form?.order.orderNumber ?? ''}`}>
+        {form && (
+          <form onSubmit={submitPayment}>
+            <Stack>
+              <Paper bg="var(--mantine-color-gray-light)" p="sm">
+                <Group justify="space-between">
+                  <Text c="dimmed">Saldo pendiente</Text>
+                  <Text fw={800} fz="lg" className="tabular">
+                    {formatMoney(form.balance)}
+                  </Text>
+                </Group>
+              </Paper>
+              <Select
+                label="Método de pago"
+                data={toOptions(PAYMENT_METHOD)}
+                value={form.method}
+                onChange={(v) => setForm({ ...form, method: v })}
+                allowDeselect={false}
+              />
+              <NumberInput
+                label="Monto recibido"
+                value={form.amount}
+                onChange={(v) => setForm({ ...form, amount: v })}
+                min={1}
+                max={form.balance}
+                thousandSeparator="."
+                decimalSeparator=","
+                prefix="$ "
+                allowNegative={false}
+                description="Puede ser un abono parcial"
+                required
+              />
+              <TextInput
+                label="Referencia (opcional)"
+                placeholder="N.º de transacción de Nequi, Daviplata…"
+                maxLength={100}
+                value={form.reference}
+                onChange={(e) => setForm({ ...form, reference: e.currentTarget.value })}
+              />
+              <Group justify="flex-end">
+                <Button variant="default" onClick={() => setForm(null)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" loading={busy} disabled={!form.amount || form.amount > form.balance}>
+                  Registrar pago
+                </Button>
+              </Group>
+            </Stack>
+          </form>
+        )}
+      </Modal>
+
+      {/* ---------------- Ventana: reembolso (solo ADMIN) ---------------- */}
+      <Modal opened={Boolean(refunding)} onClose={() => setRefunding(null)} title="Reembolsar pago">
+        {refunding && (
+          <Stack>
+            <Text size="sm">
+              Se marcará como reembolsado el pago de <strong>{formatMoney(refunding.amount)}</strong> del pedido #{refunding.order.orderNumber}. El
+              registro se conserva para auditoría.
+            </Text>
+            <Textarea
+              label="Motivo"
+              placeholder="Ej.: cobro duplicado"
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.currentTarget.value)}
+              autosize
+              minRows={2}
+              data-autofocus
+            />
+            <Group justify="flex-end">
+              <Button variant="default" onClick={() => setRefunding(null)}>
+                Volver
+              </Button>
+              <Button color="red" loading={busy} disabled={refundReason.trim().length < 3} onClick={submitRefund}>
+                Reembolsar
+              </Button>
+            </Group>
+          </Stack>
+        )}
+      </Modal>
     </>
   );
 }

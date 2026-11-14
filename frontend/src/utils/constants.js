@@ -1,3 +1,6 @@
+// Textos y colores de los valores que envía el backend.
+// `color` es un color de Mantine (gray, blue, yellow, green, violet, teal, red, orange…).
+
 export const ROLE_LABEL = {
   ADMIN: 'Administrador',
   CAJERO: 'Cajero',
@@ -5,14 +8,30 @@ export const ROLE_LABEL = {
   DOMICILIARIO: 'Domiciliario',
 };
 
+export const ROLE_COLOR = {
+  ADMIN: 'brand',
+  CAJERO: 'blue',
+  COCINA: 'yellow',
+  DOMICILIARIO: 'violet',
+};
+
 export const ORDER_STATUS = {
-  PENDIENTE: { label: 'Pendiente', tone: 'neutral' },
-  CONFIRMADO: { label: 'Confirmado', tone: 'info' },
-  EN_PREPARACION: { label: 'En preparación', tone: 'warning' },
-  LISTO: { label: 'Listo', tone: 'success' },
-  EN_CAMINO: { label: 'En camino', tone: 'accent' },
-  ENTREGADO: { label: 'Entregado', tone: 'done' },
-  CANCELADO: { label: 'Cancelado', tone: 'danger' },
+  PENDIENTE: { label: 'Pendiente', color: 'gray' },
+  CONFIRMADO: { label: 'Confirmado', color: 'blue' },
+  EN_PREPARACION: { label: 'En preparación', color: 'yellow' },
+  LISTO: { label: 'Listo', color: 'green' },
+  EN_CAMINO: { label: 'En camino', color: 'violet' },
+  ENTREGADO: { label: 'Entregado', color: 'teal' },
+  CANCELADO: { label: 'Cancelado', color: 'red' },
+};
+
+/** Texto del botón para llevar un pedido a cada estado. */
+export const STATUS_ACTION_LABEL = {
+  CONFIRMADO: 'Confirmar',
+  EN_PREPARACION: 'Iniciar preparación',
+  LISTO: 'Marcar listo',
+  ENTREGADO: 'Marcar entregado',
+  CANCELADO: 'Cancelar pedido',
 };
 
 export const ORDER_SOURCE = {
@@ -22,7 +41,11 @@ export const ORDER_SOURCE = {
   DOMICILIO: 'Domicilio',
 };
 
-// ---------- Fase 10: pagos y domicilios
+export const ORDER_TYPE = {
+  EN_LOCAL: 'En el local',
+  PARA_LLEVAR: 'Para llevar',
+  DOMICILIO: 'Domicilio',
+};
 
 export const PAYMENT_METHOD = {
   EFECTIVO: 'Efectivo',
@@ -34,10 +57,10 @@ export const PAYMENT_METHOD = {
 };
 
 export const PAYMENT_STATUS = {
-  PENDIENTE: { label: 'Pendiente', tone: 'warning' },
-  PARCIAL: { label: 'Parcial', tone: 'info' },
-  PAGADO: { label: 'Pagado', tone: 'success' },
-  REEMBOLSADO: { label: 'Reembolsado', tone: 'danger' },
+  PENDIENTE: { label: 'Pendiente', color: 'yellow' },
+  PARCIAL: { label: 'Parcial', color: 'blue' },
+  PAGADO: { label: 'Pagado', color: 'green' },
+  REEMBOLSADO: { label: 'Reembolsado', color: 'red' },
 };
 
 export const TRANSPORT_TYPE = {
@@ -47,7 +70,11 @@ export const TRANSPORT_TYPE = {
 };
 
 export const COURIER_STATUS = {
-  DISPONIBLE: { label: 'Disponible', tone: 'success' },
-  OCUPADO: { label: 'En entrega', tone: 'accent' },
-  INACTIVO: { label: 'Descanso', tone: 'neutral' },
+  DISPONIBLE: { label: 'Disponible', color: 'green' },
+  OCUPADO: { label: 'En entrega', color: 'violet' },
+  INACTIVO: { label: 'Descanso', color: 'gray' },
 };
+
+/** Lista para <Select data={...}>: [{ value, label }] */
+export const toOptions = (dict) =>
+  Object.entries(dict).map(([value, v]) => ({ value, label: typeof v === 'string' ? v : v.label }));

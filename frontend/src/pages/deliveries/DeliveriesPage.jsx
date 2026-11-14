@@ -1,4 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import {
+  Alert,
+  Avatar,
+  Button,
+  Card,
+  Group,
+  Paper,
+  Select,
+  SimpleGrid,
+  Skeleton,
+  Stack,
+  Table,
+  Tabs,
+  Text,
+  Title,
+} from '@mantine/core';
+import { IconAlertCircle, IconMapPin, IconMotorbike, IconPackage, IconRefresh, IconUsers } from '@tabler/icons-react';
 import { fetchOrders } from '../../services/orders.service.js';
 import {
   assignDelivery,
@@ -7,225 +24,242 @@ import {
   fetchDeliveryPersons,
   setCourierAvailability,
 } from '../../services/deliveries.service.js';
-import { getErrorMessage } from '../../services/api.js';
+import { useApi } from '../../hooks/useApi.js';
+import { useAuth } from '../../hooks/useAuth.js';
+import { can } from '../../auth/access.js';
+import PageHeader from '../../components/PageHeader.jsx';
 import Badge from '../../components/Badge.jsx';
+import EmptyState from '../../components/EmptyState.jsx';
+import { notifyError, notifySuccess } from '../../utils/notify.js';
 import { COURIER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS, TRANSPORT_TYPE } from '../../utils/constants.js';
 import { formatMoney, formatTime } from '../../utils/format.js';
-import ui from '../../styles/ui.module.css';
 
 const REFRESH_MS = 15000; // la cocina marca pedidos LISTOS en cualquier momento
 
+const loadAll = () =>
+  Promise.all([
+    fetchOrders({ status: 'LISTO', type: 'DOMICILIO', pageSize: 50 }),
+    fetchDeliveries({ status: 'ASIGNADO,EN_CAMINO' }),
+    fetchDeliveryPersons(),
+  ]).then(([orders, onTheWay, couriers]) => ({ ready: orders.data, onTheWay, couriers }));
+
 export default function DeliveriesPage() {
-  const [data, setData] = useState(null); // { ready, onTheWay, couriers }
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
-  const [busy, setBusy] = useState(false);
+  const { user } = useAuth();
+  // loadAll está fuera del componente: es siempre la misma función (no necesita useCallback)
+  const { data, error, loading, reload } = useApi(loadAll, { interval: REFRESH_MS });
+  const [busy, setBusy] = useState(null); // id de lo que se está guardando
   const [selected, setSelected] = useState({}); // { [orderId]: deliveryPersonId }
-  const [reloadCount, setReloadCount] = useState(0);
 
-  useEffect(() => {
-    let ignore = false;
-
-    function load() {
-      Promise.all([
-        fetchOrders({ status: 'LISTO', type: 'DOMICILIO', pageSize: 50 }),
-        fetchDeliveries({ status: 'ASIGNADO,EN_CAMINO' }),
-        fetchDeliveryPersons(),
-      ])
-        .then(([orders, deliveries, couriers]) => {
-          if (ignore) return;
-          setData({ ready: orders.data, onTheWay: deliveries, couriers });
-          setError('');
-        })
-        .catch((err) => {
-          if (!ignore) setError(getErrorMessage(err));
-        });
-    }
-
-    load();
-    const timer = setInterval(load, REFRESH_MS);
-    return () => {
-      ignore = true;
-      clearInterval(timer);
-    };
-  }, [reloadCount]);
-
-  /** Ejecuta una acción, muestra el resultado y recarga los datos. */
-  async function run(action, successText) {
-    setBusy(true);
-    setMessage('');
-    setError('');
+  /** Ejecuta una acción, avisa el resultado y recarga (también si falla: otro cajero pudo adelantarse). */
+  async function run(key, action, successText) {
+    setBusy(key);
     try {
       await action();
-      setMessage(successText);
-      setReloadCount((n) => n + 1);
+      notifySuccess(successText);
     } catch (err) {
-      setError(getErrorMessage(err));
-      setReloadCount((n) => n + 1); // los datos pudieron cambiar (otro cajero, otra pestaña)
+      notifyError(err);
     } finally {
-      setBusy(false);
+      setBusy(null);
+      reload();
     }
   }
 
   const available = data?.couriers.filter((c) => c.availability === 'DISPONIBLE') ?? [];
+  const courierOptions = available.map((c) => ({ value: String(c.id), label: `${c.name} · ${TRANSPORT_TYPE[c.transportType]}` }));
 
   return (
     <>
-      <header className={ui.header}>
-        <div>
-          <h1 className={ui.title}>Domicilios</h1>
-          <p className={ui.subtitle}>Despacho de pedidos listos · se actualiza cada 15 s</p>
-        </div>
-        <button className={ui.button} onClick={() => setReloadCount((n) => n + 1)} disabled={busy}>
+      <PageHeader title="Domicilios" subtitle="Despacho de pedidos listos · se actualiza cada 15 s">
+        <Button variant="default" leftSection={<IconRefresh size={16} />} onClick={reload}>
           Actualizar
-        </button>
-      </header>
+        </Button>
+      </PageHeader>
 
-      {error && <p className={ui.alert}>{error}</p>}
-      {message && <p className={ui.success}>{message}</p>}
-      {!data && !error && <p>Cargando…</p>}
+      {error && (
+        <Alert color="red" icon={<IconAlertCircle size={18} />} mb="md">
+          {error}
+        </Alert>
+      )}
+      {loading && <Skeleton h={300} radius="lg" />}
 
       {data && (
-        <>
-          {/* ---------------- Listos para despachar ---------------- */}
-          <section className={ui.section}>
-            <h2 className={ui.sectionTitle}>Listos para despachar ({data.ready.length})</h2>
+        <Tabs defaultValue="ready" keepMounted={false}>
+          <Tabs.List mb="md">
+            <Tabs.Tab value="ready" leftSection={<IconPackage size={16} />}>
+              Listos para despachar <Badge info={{ label: data.ready.length, color: 'green' }} size="sm" />
+            </Tabs.Tab>
+            <Tabs.Tab value="onTheWay" leftSection={<IconMotorbike size={16} />}>
+              En camino <Badge info={{ label: data.onTheWay.length, color: 'violet' }} size="sm" />
+            </Tabs.Tab>
+            <Tabs.Tab value="couriers" leftSection={<IconUsers size={16} />}>
+              Domiciliarios <Badge info={{ label: `${available.length} libres`, color: 'gray' }} size="sm" />
+            </Tabs.Tab>
+          </Tabs.List>
+
+          {/* ---------------- Listos ---------------- */}
+          <Tabs.Panel value="ready">
             {data.ready.length === 0 ? (
-              <p className={ui.empty}>No hay pedidos a domicilio listos.</p>
+              <EmptyState title="No hay pedidos a domicilio listos" description="Aparecerán aquí cuando cocina los marque como listos." />
             ) : (
-              <div className={ui.grid}>
+              <SimpleGrid cols={{ base: 1, sm: 2, xl: 3 }} spacing="md">
                 {data.ready.map((order) => (
-                  <article key={order.id} className={ui.card}>
-                    <div className={ui.row} style={{ justifyContent: 'space-between' }}>
-                      <strong>#{order.orderNumber}</strong>
+                  <Card key={order.id} padding="lg">
+                    <Group justify="space-between" mb="xs">
+                      <Title order={4}>#{order.orderNumber}</Title>
                       <Badge info={PAYMENT_STATUS[order.paymentStatus]} />
-                    </div>
-                    <p style={{ margin: '8px 0 4px' }}>
-                      {order.customer?.name} · {order.customer?.phone}
-                    </p>
-                    <p className={ui.muted} style={{ margin: '0 0 8px' }}>📍 {order.deliveryAddress}</p>
-                    <p className={ui.muted} style={{ margin: '0 0 8px' }}>
+                    </Group>
+                    <Text fw={600}>{order.customer?.name}</Text>
+                    <Text size="sm" c="dimmed">
+                      {order.customer?.phone}
+                    </Text>
+                    <Group gap={6} mt="xs" wrap="nowrap" align="flex-start">
+                      <IconMapPin size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                      <Text size="sm">{order.deliveryAddress}</Text>
+                    </Group>
+                    <Text size="sm" c="dimmed" mt="xs" lineClamp={2}>
                       {order.items.map((i) => `${i.quantity} ${i.productName}`).join(', ')}
-                    </p>
-                    <p style={{ margin: '0 0 12px' }}>
-                      <strong>{formatMoney(order.total)}</strong>
-                      {order.paymentMethod && <span className={ui.muted}> · {PAYMENT_METHOD[order.paymentMethod]}</span>}
-                    </p>
-                    <div className={ui.row}>
-                      <select
-                        className={ui.input}
-                        style={{ flex: 1 }}
-                        value={selected[order.id] ?? ''}
-                        onChange={(e) => setSelected((s) => ({ ...s, [order.id]: e.target.value }))}
-                        aria-label={`Domiciliario para el pedido ${order.orderNumber}`}
-                      >
-                        <option value="">{available.length ? 'Elegir domiciliario…' : 'Nadie disponible'}</option>
-                        {available.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name} ({TRANSPORT_TYPE[c.transportType]})
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        className={`${ui.button} ${ui.primary}`}
-                        disabled={busy || !selected[order.id]}
-                        onClick={() =>
-                          run(
-                            () => assignDelivery(order.id, Number(selected[order.id])),
-                            `Pedido #${order.orderNumber} despachado`,
-                          )
-                        }
-                      >
-                        Despachar
-                      </button>
-                    </div>
-                  </article>
+                    </Text>
+                    <Group justify="space-between" mt="sm">
+                      <Text fw={700} size="lg" className="tabular">
+                        {formatMoney(order.total)}
+                      </Text>
+                      {order.paymentMethod && (
+                        <Text size="sm" c="dimmed">
+                          {PAYMENT_METHOD[order.paymentMethod]}
+                        </Text>
+                      )}
+                    </Group>
+                    {can(user, 'deliveries.assign') && (
+                      <Group mt="md" gap="xs" wrap="nowrap" align="flex-end">
+                        <Select
+                          style={{ flex: 1 }}
+                          placeholder={available.length ? 'Elegir domiciliario' : 'Nadie disponible'}
+                          data={courierOptions}
+                          value={selected[order.id] ?? null}
+                          onChange={(v) => setSelected((s) => ({ ...s, [order.id]: v }))}
+                          disabled={available.length === 0}
+                          aria-label={`Domiciliario para el pedido ${order.orderNumber}`}
+                          comboboxProps={{ withinPortal: true }}
+                        />
+                        <Button
+                          disabled={!selected[order.id]}
+                          loading={busy === `assign-${order.id}`}
+                          onClick={() =>
+                            run(`assign-${order.id}`, () => assignDelivery(order.id, Number(selected[order.id])), `Pedido #${order.orderNumber} despachado`)
+                          }
+                        >
+                          Despachar
+                        </Button>
+                      </Group>
+                    )}
+                  </Card>
                 ))}
-              </div>
+              </SimpleGrid>
             )}
-          </section>
+          </Tabs.Panel>
 
           {/* ---------------- En camino ---------------- */}
-          <section className={ui.section}>
-            <h2 className={ui.sectionTitle}>En camino ({data.onTheWay.length})</h2>
+          <Tabs.Panel value="onTheWay">
             {data.onTheWay.length === 0 ? (
-              <p className={ui.empty}>No hay entregas en curso.</p>
+              <EmptyState title="No hay entregas en curso" icon={IconMotorbike} />
             ) : (
-              <div className={ui.tableWrap}>
-                <table className={ui.table}>
-                  <thead>
-                    <tr>
-                      <th>Pedido</th>
-                      <th>Domiciliario</th>
-                      <th>Salió</th>
-                      <th>Dirección</th>
-                      <th className={ui.num}>Total</th>
-                      <th>Pago</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.onTheWay.map((d) => (
-                      <tr key={d.id}>
-                        <td className={ui.strong}>#{d.order.orderNumber}</td>
-                        <td>{d.deliveryPerson.name}</td>
-                        <td>{formatTime(d.assignedAt)}</td>
-                        <td>{d.order.deliveryAddress}</td>
-                        <td className={ui.num}>{formatMoney(d.order.total)}</td>
-                        <td>
-                          <Badge info={PAYMENT_STATUS[d.order.paymentStatus]} />
-                        </td>
-                        <td>
-                          <button
-                            className={`${ui.button} ${ui.small}`}
-                            disabled={busy}
-                            onClick={() => run(() => completeDelivery(d.id), `Pedido #${d.order.orderNumber} entregado`)}
-                          >
-                            Confirmar entrega
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Paper withBorder>
+                <Table.ScrollContainer minWidth={760}>
+                  <Table>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Pedido</Table.Th>
+                        <Table.Th>Domiciliario</Table.Th>
+                        <Table.Th>Salió</Table.Th>
+                        <Table.Th>Dirección</Table.Th>
+                        <Table.Th ta="right">Total</Table.Th>
+                        <Table.Th>Pago</Table.Th>
+                        <Table.Th />
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {data.onTheWay.map((d) => (
+                        <Table.Tr key={d.id}>
+                          <Table.Td fw={700}>#{d.order.orderNumber}</Table.Td>
+                          <Table.Td>{d.deliveryPerson.name}</Table.Td>
+                          <Table.Td>{formatTime(d.assignedAt)}</Table.Td>
+                          <Table.Td>{d.order.deliveryAddress}</Table.Td>
+                          <Table.Td ta="right" className="tabular">
+                            {formatMoney(d.order.total)}
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge info={PAYMENT_STATUS[d.order.paymentStatus]} size="sm" />
+                          </Table.Td>
+                          <Table.Td>
+                            <Button
+                              size="xs"
+                              variant="light"
+                              color="teal"
+                              loading={busy === `done-${d.id}`}
+                              onClick={() => run(`done-${d.id}`, () => completeDelivery(d.id), `Pedido #${d.order.orderNumber} entregado`)}
+                            >
+                              Confirmar entrega
+                            </Button>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </Table.ScrollContainer>
+              </Paper>
             )}
-          </section>
+          </Tabs.Panel>
 
           {/* ---------------- Domiciliarios ---------------- */}
-          <section className={ui.section}>
-            <h2 className={ui.sectionTitle}>Domiciliarios</h2>
-            <div className={ui.grid}>
-              {data.couriers.map((c) => (
-                <article key={c.id} className={ui.card}>
-                  <div className={ui.row} style={{ justifyContent: 'space-between' }}>
-                    <strong>{c.name}</strong>
-                    <Badge info={COURIER_STATUS[c.availability]} />
-                  </div>
-                  <p className={ui.muted} style={{ margin: '6px 0 10px' }}>
-                    {TRANSPORT_TYPE[c.transportType]} · {c.phone} · {c.deliveredToday} entregas hoy
-                    {c.activeDelivery && <> · lleva el #{c.activeDelivery.order.orderNumber}</>}
-                  </p>
-                  {c.availability !== 'OCUPADO' && (
-                    <button
-                      className={`${ui.button} ${ui.small}`}
-                      disabled={busy}
-                      onClick={() => {
-                        const next = c.availability === 'DISPONIBLE' ? 'INACTIVO' : 'DISPONIBLE';
-                        run(
-                          () => setCourierAvailability(c.id, next),
-                          `${c.name}: ${COURIER_STATUS[next].label.toLowerCase()}`,
-                        );
-                      }}
-                    >
-                      {c.availability === 'DISPONIBLE' ? 'Enviar a descanso' : 'Marcar disponible'}
-                    </button>
-                  )}
-                </article>
-              ))}
-            </div>
-          </section>
-        </>
+          <Tabs.Panel value="couriers">
+            <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }} spacing="md">
+              {data.couriers.map((c) => {
+                const next = c.availability === 'DISPONIBLE' ? 'INACTIVO' : 'DISPONIBLE';
+                return (
+                  <Card key={c.id} padding="lg">
+                    <Group justify="space-between" align="flex-start" wrap="nowrap">
+                      <Group gap="sm" wrap="nowrap">
+                        <Avatar color={COURIER_STATUS[c.availability].color} radius="xl">
+                          <IconMotorbike size={20} />
+                        </Avatar>
+                        <div>
+                          <Text fw={600}>{c.name}</Text>
+                          <Text size="xs" c="dimmed">
+                            {TRANSPORT_TYPE[c.transportType]} · {c.phone}
+                          </Text>
+                        </div>
+                      </Group>
+                      <Badge info={COURIER_STATUS[c.availability]} />
+                    </Group>
+                    <Stack gap={2} mt="md">
+                      <Text size="sm">
+                        <strong>{c.deliveredToday}</strong> entregas hoy
+                      </Text>
+                      {c.activeDelivery && (
+                        <Text size="sm" c="violet.7">
+                          Lleva el pedido #{c.activeDelivery.order.orderNumber}
+                        </Text>
+                      )}
+                    </Stack>
+                    {can(user, 'couriers.setAvailability') && c.availability !== 'OCUPADO' && (
+                      <Button
+                        mt="md"
+                        variant="light"
+                        color={next === 'DISPONIBLE' ? 'green' : 'gray'}
+                        loading={busy === `avail-${c.id}`}
+                        onClick={() =>
+                          run(`avail-${c.id}`, () => setCourierAvailability(c.id, next), `${c.name}: ${COURIER_STATUS[next].label.toLowerCase()}`)
+                        }
+                      >
+                        {next === 'DISPONIBLE' ? 'Marcar disponible' : 'Enviar a descanso'}
+                      </Button>
+                    )}
+                  </Card>
+                );
+              })}
+            </SimpleGrid>
+          </Tabs.Panel>
+        </Tabs>
       )}
     </>
   );

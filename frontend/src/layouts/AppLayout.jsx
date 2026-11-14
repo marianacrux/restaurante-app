@@ -1,55 +1,67 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { AppShell, Burger, Group, NavLink, ScrollArea, Text, ThemeIcon } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { IconToolsKitchen2 } from '@tabler/icons-react';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
-import { ROLE_LABEL } from '../utils/constants.js';
-import styles from './AppLayout.module.css';
-
-const NAV_ITEMS = [
-  { to: '/inicio', label: 'Inicio', roles: ['ADMIN', 'CAJERO', 'COCINA', 'DOMICILIARIO'] },
-  { to: '/dashboard', label: 'Dashboard', roles: ['ADMIN', 'CAJERO'] },
-  { to: '/pedidos', label: 'Pedidos', roles: ['ADMIN', 'CAJERO', 'COCINA'] },
-  { to: '/cocina', label: 'Cocina', roles: ['ADMIN', 'CAJERO', 'COCINA'] },
-  { to: '/domicilios', label: 'Domicilios', roles: ['ADMIN', 'CAJERO'] },
-  { to: '/pagos', label: 'Pagos', roles: ['ADMIN', 'CAJERO'] },
-  { to: '/mis-entregas', label: 'Mis entregas', roles: ['DOMICILIARIO'] },
-  { to: '/whatsapp', label: 'Simulador WhatsApp', roles: ['ADMIN', 'CAJERO'] },
-  { to: '/pantallas', label: 'Pantallas', roles: ['ADMIN'] },
-];
+import { sectionsFor } from '../auth/access.js';
+import NavIcon from '../components/NavIcon.jsx';
+import UserMenu from '../components/UserMenu.jsx';
 
 export default function AppLayout() {
-  const { user, logout } = useAuth();
-  const items = NAV_ITEMS.filter((item) => item.roles.includes(user.role));
+  const { user } = useAuth();
+  const location = useLocation();
+  const [opened, { toggle, close }] = useDisclosure(false);
+
+  // El menú se arma con los permisos de access.js: cada rol ve solo lo suyo.
+  const groups = Object.entries(
+    sectionsFor(user.role).reduce((acc, s) => ({ ...acc, [s.group]: [...(acc[s.group] ?? []), s] }), {}),
+  );
 
   return (
-    <div className={styles.shell}>
-      <aside className={styles.sidebar}>
-        <div className={styles.brand}>Restaurante</div>
+    <AppShell header={{ height: 60 }} navbar={{ width: 250, breakpoint: 'sm', collapsed: { mobile: !opened } }} padding="lg">
+      <AppShell.Header>
+        <Group h="100%" px="md" justify="space-between" wrap="nowrap">
+          <Group gap="sm" wrap="nowrap">
+            <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label="Abrir menú" />
+            <ThemeIcon size={34} radius="md" variant="gradient" gradient={{ from: 'brand.5', to: 'brand.8' }}>
+              <IconToolsKitchen2 size={20} />
+            </ThemeIcon>
+            <Text fw={800} size="lg" visibleFrom="xs">
+              Restaurante
+            </Text>
+          </Group>
+          <UserMenu />
+        </Group>
+      </AppShell.Header>
 
-        <nav className={styles.nav}>
-          {items.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => (isActive ? `${styles.link} ${styles.active}` : styles.link)}
-            >
-              {item.label}
-            </NavLink>
+      <AppShell.Navbar p="sm">
+        <ScrollArea>
+          {groups.map(([group, sections]) => (
+            <div key={group}>
+              <Text size="xs" fw={700} c="dimmed" tt="uppercase" px="sm" mt="md" mb={4}>
+                {group}
+              </Text>
+              {sections.map((s) => (
+                <NavLink
+                  key={s.path}
+                  component={Link}
+                  to={s.path}
+                  label={s.label}
+                  leftSection={<NavIcon name={s.icon} />}
+                  active={location.pathname === s.path}
+                  onClick={close}
+                  variant="light"
+                  style={{ borderRadius: 'var(--mantine-radius-md)' }}
+                />
+              ))}
+            </div>
           ))}
-        </nav>
+        </ScrollArea>
+      </AppShell.Navbar>
 
-        <div className={styles.user}>
-          <div>
-            <div className={styles.userName}>{user.name}</div>
-            <div className={styles.userRole}>{ROLE_LABEL[user.role]}</div>
-          </div>
-          <button className={styles.logout} onClick={logout}>
-            Salir
-          </button>
-        </div>
-      </aside>
-
-      <main className={styles.main}>
+      <AppShell.Main bg="var(--mantine-color-body)">
         <Outlet />
-      </main>
-    </div>
+      </AppShell.Main>
+    </AppShell>
   );
 }

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import { Alert, Anchor, Button, Card, Code, Group, List, Stack, Text, TextInput, Title } from '@mantine/core';
+import { IconInfoCircle, IconMessagePlus, IconRefresh } from '@tabler/icons-react';
 import { Link } from 'react-router-dom';
 import { sendChatMessage, startChat } from '../../services/whatsapp.service.js';
 import { getErrorMessage } from '../../services/api.js';
+import PageHeader from '../../components/PageHeader.jsx';
 import { formatMoney, formatTime } from '../../utils/format.js';
 import WhatsAppText from './WhatsAppText.jsx';
-import ui from '../../styles/ui.module.css';
 import styles from './WhatsAppSimulatorPage.module.css';
 
 /** Botones de respuesta rápida según el paso de la conversación. */
@@ -49,7 +51,7 @@ export default function WhatsAppSimulatorPage() {
     e.preventDefault();
     const digits = phone.replace(/\D/g, '').replace(/^57(?=\d{10}$)/, '');
     if (phone && !/^3\d{9}$/.test(digits)) {
-      setError('El celular debe tener 10 dígitos y empezar por 3 (o déjelo vacío).');
+      setError('El celular debe tener 10 dígitos y empezar por 3 (o déjalo vacío).');
       return;
     }
     setBusy(true);
@@ -89,12 +91,7 @@ export default function WhatsAppSimulatorPage() {
 
   return (
     <>
-      <header className={ui.header}>
-        <div>
-          <h1 className={ui.title}>Simulador de WhatsApp</h1>
-          <p className={ui.subtitle}>Pruebe el bot de pedidos como si fuera un cliente</p>
-        </div>
-      </header>
+      <PageHeader title="Simulador de WhatsApp" subtitle="Prueba el bot de pedidos como si fueras un cliente" />
 
       <div className={styles.layout}>
         {/* ----------------------------- Teléfono ----------------------------- */}
@@ -111,9 +108,7 @@ export default function WhatsAppSimulatorPage() {
 
           <div className={styles.messages} role="log" aria-live="polite">
             {!session && (
-              <div className={styles.placeholder}>
-                Inicie una conversación para simular a un cliente que escribe al WhatsApp del restaurante.
-              </div>
+              <div className={styles.placeholder}>Inicia una conversación para simular a un cliente que escribe al WhatsApp del restaurante.</div>
             )}
             {messages.map((m) => (
               <div key={m.id} className={`${styles.bubble} ${m.from === 'bot' ? styles.bot : styles.client}`}>
@@ -145,7 +140,7 @@ export default function WhatsAppSimulatorPage() {
             <input
               ref={inputRef}
               className={styles.input}
-              placeholder={session ? 'Escribe un mensaje' : 'Inicie una conversación →'}
+              placeholder={session ? 'Escribe un mensaje' : 'Inicia una conversación →'}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={!session}
@@ -159,85 +154,121 @@ export default function WhatsAppSimulatorPage() {
         </section>
 
         {/* ---------------------------- Panel lateral ---------------------------- */}
-        <div className={styles.side}>
-          <p className={ui.info} style={{ margin: 0 }}>
-            <strong>Modo simulación.</strong> No se envían mensajes reales. El bot usa el catálogo real y registra los
-            pedidos en el sistema con canal WhatsApp.
-          </p>
+        <Stack gap="md">
+          <Alert color="blue" icon={<IconInfoCircle size={18} />} title="Modo simulación">
+            No se envían mensajes reales. El bot usa el catálogo real y registra los pedidos en el sistema con canal WhatsApp.
+          </Alert>
 
-          <section className={ui.card}>
-            <h2 className={ui.cardTitle}>Conversación</h2>
-            <form className={styles.startForm} onSubmit={start}>
-              <label className={ui.field}>
-                Celular del cliente (opcional)
-                <input
-                  className={ui.input}
+          <Card padding="lg">
+            <Title order={5} mb="sm">
+              Conversación
+            </Title>
+            <form onSubmit={start}>
+              <Stack gap="sm">
+                <TextInput
+                  label="Celular del cliente (opcional)"
+                  description="Con WhatsApp real el número llega solo. Si lo dejas vacío, el bot lo pregunta."
                   placeholder="3001234567"
                   inputMode="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(e.currentTarget.value)}
                 />
-                <span className={ui.muted} style={{ fontWeight: 400 }}>
-                  Con WhatsApp real el número llega solo. Si lo deja vacío, el bot lo pregunta.
-                </span>
-              </label>
-              <button className={`${ui.button} ${session ? '' : ui.primary}`} disabled={busy}>
-                {session ? 'Reiniciar conversación' : 'Iniciar conversación'}
-              </button>
+                <Button
+                  type="submit"
+                  loading={busy && !session}
+                  variant={session ? 'default' : 'filled'}
+                  leftSection={session ? <IconRefresh size={16} /> : <IconMessagePlus size={16} />}
+                >
+                  {session ? 'Reiniciar conversación' : 'Iniciar conversación'}
+                </Button>
+              </Stack>
             </form>
-            {error && <p className={ui.alert}>{error}</p>}
-          </section>
+            {error && (
+              <Alert color="red" mt="sm">
+                {error}
+              </Alert>
+            )}
+          </Card>
 
           {session && (
-            <section className={ui.card}>
-              <h2 className={ui.cardTitle}>Estado del bot</h2>
-              <dl className={styles.info}>
-                <dt>Paso</dt>
-                <dd>{STEP_LABEL[session.step] ?? session.step}</dd>
-                <dt>Productos</dt>
-                <dd>{session.cart.reduce((n, l) => n + l.quantity, 0)}</dd>
-                <dt>Subtotal</dt>
-                <dd>{formatMoney(subtotal)}</dd>
-              </dl>
+            <Card padding="lg">
+              <Title order={5} mb="sm">
+                Estado del bot
+              </Title>
+              <Stack gap={4}>
+                <Group justify="space-between">
+                  <Text c="dimmed" size="sm">
+                    Paso
+                  </Text>
+                  <Text fw={600} size="sm">
+                    {STEP_LABEL[session.step] ?? session.step}
+                  </Text>
+                </Group>
+                <Group justify="space-between">
+                  <Text c="dimmed" size="sm">
+                    Productos
+                  </Text>
+                  <Text fw={600} size="sm">
+                    {session.cart.reduce((n, l) => n + l.quantity, 0)}
+                  </Text>
+                </Group>
+                <Group justify="space-between">
+                  <Text c="dimmed" size="sm">
+                    Subtotal
+                  </Text>
+                  <Text fw={600} size="sm" className="tabular">
+                    {formatMoney(subtotal)}
+                  </Text>
+                </Group>
+              </Stack>
               {session.cart.length > 0 && (
-                <ul className={styles.cart}>
+                <List size="sm" mt="sm">
                   {session.cart.map((l, i) => (
-                    <li key={i}>
+                    <List.Item key={i}>
                       {l.quantity} × {l.name}
                       {l.notes && <em> ({l.notes})</em>}
-                    </li>
+                    </List.Item>
                   ))}
-                </ul>
+                </List>
               )}
               {session.orderId && (
-                <div className={styles.created}>
-                  ✅ Pedido registrado. <Link to="/pedidos">Ver pedidos</Link> · <Link to="/cocina">Ir a cocina</Link>
-                </div>
+                <Alert color="green" mt="sm">
+                  ✅ Pedido registrado.{' '}
+                  <Anchor component={Link} to="/pedidos">
+                    Ver pedidos
+                  </Anchor>{' '}
+                  ·{' '}
+                  <Anchor component={Link} to="/cocina">
+                    Ir a cocina
+                  </Anchor>
+                </Alert>
               )}
-            </section>
+            </Card>
           )}
 
-          <section className={ui.card}>
-            <h2 className={ui.cardTitle}>Cómo pedir</h2>
-            <ul className={styles.help}>
-              <li>
-                <code>5</code> agrega el producto 5
-              </li>
-              <li>
-                <code>5 x2</code> agrega 2 unidades
-              </li>
-              <li>
-                <code>5 x2 sin cebolla</code> con instrucciones
-              </li>
-              <li>
-                <code>VER</code> muestra el pedido · <code>QUITAR 1</code> quita una línea
-              </li>
-              <li>
-                <code>LISTO</code> continúa · <code>CANCELAR</code> empieza de nuevo
-              </li>
-            </ul>
-          </section>
-        </div>
+          <Card padding="lg">
+            <Title order={5} mb="sm">
+              Cómo pedir
+            </Title>
+            <List size="sm" spacing={4}>
+              <List.Item>
+                <Code>5</Code> agrega el producto 5
+              </List.Item>
+              <List.Item>
+                <Code>5 x2</Code> agrega 2 unidades
+              </List.Item>
+              <List.Item>
+                <Code>5 x2 sin cebolla</Code> con instrucciones
+              </List.Item>
+              <List.Item>
+                <Code>VER</Code> muestra el pedido · <Code>QUITAR 1</Code> quita una línea
+              </List.Item>
+              <List.Item>
+                <Code>LISTO</Code> continúa · <Code>CANCELAR</Code> empieza de nuevo
+              </List.Item>
+            </List>
+          </Card>
+        </Stack>
       </div>
     </>
   );

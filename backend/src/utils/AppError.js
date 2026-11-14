@@ -9,4 +9,5 @@ export class AppError extends Error {
   static forbidden(message = 'No tiene permisos para esta acción') { return new AppError(message, 403); }
   static notFound(message = 'Recurso no encontrado') { return new AppError(message, 404); }
   static conflict(message) { return new AppError(message, 409); }
+  static tooManyRequests(message) { return new AppError(message, 429); }
 }
