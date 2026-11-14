@@ -9,6 +9,9 @@ import dashboardRoutes from './modules/dashboard/dashboard.routes.js';
 import deliveryPersonRoutes from './modules/delivery-persons/deliveryPerson.routes.js';
 import deliveryRoutes from './modules/deliveries/delivery.routes.js';
 import paymentRoutes from './modules/payments/payment.routes.js';
+import simulatorRoutes from './modules/whatsapp/simulator.routes.js';
+import screenRoutes from './modules/screens/screen.routes.js';
+import promotionRoutes from './modules/screens/promotion.routes.js';
 
 export function createApp() {
   const app = express();
@@ -30,6 +33,10 @@ export function createApp() {
   app.use('/api/delivery-persons', deliveryPersonRoutes);
   app.use('/api/deliveries', deliveryRoutes);
   app.use('/api/payments', paymentRoutes);
+  // Fase 11
+  app.use('/api/whatsapp-simulator', simulatorRoutes);
+  app.use('/api/screens', screenRoutes);
+  app.use('/api/promotions', promotionRoutes);
 
   app.use(notFoundHandler); // ninguna ruta coincidió
   app.use(errorHandler);    // cualquier error que ocurra arriba llega aquí

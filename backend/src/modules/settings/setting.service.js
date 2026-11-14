@@ -9,3 +9,9 @@ export async function getDeliveryFee(db = prisma) {
   const setting = await db.setting.findUnique({ where: { key: 'DELIVERY_FEE' } });
   return new Prisma.Decimal(setting?.value ?? '0');
 }
+
+/** Nombre que muestran el bot de WhatsApp y las pantallas. */
+export async function getRestaurantName() {
+  const setting = await prisma.setting.findUnique({ where: { key: 'RESTAURANT_NAME' } });
+  return setting?.value ?? 'Restaurante';
+}

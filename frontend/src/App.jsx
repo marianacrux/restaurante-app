@@ -10,6 +10,9 @@ import DashboardPage from './pages/dashboard/DashboardPage.jsx';
 import DeliveriesPage from './pages/deliveries/DeliveriesPage.jsx';
 import MyDeliveriesPage from './pages/deliveries/MyDeliveriesPage.jsx';
 import PaymentsPage from './pages/payments/PaymentsPage.jsx';
+import WhatsAppSimulatorPage from './pages/whatsapp/WhatsAppSimulatorPage.jsx';
+import ScreensAdminPage from './pages/screens/ScreensAdminPage.jsx';
+import DisplayScreenPage from './pages/screens/DisplayScreenPage.jsx';
 
 export default function App() {
   return (
@@ -17,6 +20,7 @@ export default function App() {
       {/* Públicas */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/estado" element={<StatusPage />} />
+      <Route path="/pantalla/:number" element={<DisplayScreenPage />} /> {/* televisores */}
 
       <Route element={<ProtectedRoute />}>
         {/* Cocina: pantalla completa, SIN el menú lateral */}
@@ -31,12 +35,16 @@ export default function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/domicilios" element={<DeliveriesPage />} />
             <Route path="/pagos" element={<PaymentsPage />} />
+            <Route path="/whatsapp" element={<WhatsAppSimulatorPage />} />
           </Route>
           <Route element={<ProtectedRoute roles={['ADMIN', 'CAJERO', 'COCINA']} />}>
             <Route path="/pedidos" element={<OrdersPage />} />
           </Route>
           <Route element={<ProtectedRoute roles={['DOMICILIARIO']} />}>
             <Route path="/mis-entregas" element={<MyDeliveriesPage />} />
+          </Route>
+          <Route element={<ProtectedRoute roles={['ADMIN']} />}>
+            <Route path="/pantallas" element={<ScreensAdminPage />} />
           </Route>
         </Route>
       </Route>

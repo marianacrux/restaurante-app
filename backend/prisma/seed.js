@@ -120,6 +120,56 @@ async function seedScreensAndSettings() {
   console.log(`✔ ${SCREENS.length} pantallas, ${SETTINGS.length} parámetros`);
 }
 
+// Fase 11: promociones de ejemplo (vigentes 30 días desde que se ejecuta el seed)
+async function seedPromotions() {
+  const combo = await prisma.product.findFirst({ where: { name: 'Combo clásico' } });
+  const startDate = new Date();
+  const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const promotions = [
+    { name: 'Martes de hamburguesa', description: '20% de descuento en hamburguesas los martes', discountType: 'PORCENTAJE', discountValue: 20 },
+    { name: 'Combo clásico a precio especial', description: 'Ahorra $4.000 en el combo clásico', discountType: 'VALOR_FIJO', discountValue: 4000, productId: combo?.id ?? null },
+  ];
+  for (const promotion of promotions) {
+    const data = { ...promotion, startDate, endDate, active: true };
+    const existing = await prisma.promotion.findFirst({ where: { name: promotion.name } });
+    if (existing) await prisma.promotion.update({ where: { id: existing.id }, data });
+    else await prisma.promotion.create({ data });
+  }
+  console.log(`✔ ${promotions.length} promociones`);
+}
+
+// Fase 11: contenido inicial de las 4 pantallas. Solo se crea si la pantalla está VACÍA,
+// para no borrar lo que el administrador haya configurado.
+async function seedScreenContent() {
+  const products = await prisma.product.findMany({ where: { active: true }, include: { category: true } });
+  const byCategory = (...names) => products.filter((p) => names.includes(p.category.name));
+  const asProduct = (p) => ({ contentType: 'PRODUCTO', productId: p.id });
+  const promotions = await prisma.promotion.findMany({ where: { active: true } });
+
+  const plan = {
+    1: [...products.filter((p) => p.isDailyMenu), ...byCategory('Platos fuertes').filter((p) => !p.isDailyMenu)].map(asProduct),
+    2: [...promotions.map((p) => ({ contentType: 'PROMOCION', promotionId: p.id })), ...byCategory('Combos').map(asProduct)],
+    3: byCategory('Bebidas', 'Adicionales', 'Postres').map(asProduct),
+    4: [
+      { contentType: 'ANUNCIO', title: 'Pide por WhatsApp', description: 'Escríbenos y recibe tu pedido en casa' },
+      ...products.filter((p) => p.isFeatured).map(asProduct),
+      { contentType: 'ANUNCIO', title: 'Aceptamos Nequi, Daviplata y tarjeta', description: 'También efectivo y transferencia' },
+    ],
+  };
+
+  let created = 0;
+  for (const [number, items] of Object.entries(plan)) {
+    const screen = await prisma.menuScreen.findUnique({
+      where: { screenNumber: Number(number) },
+      include: { _count: { select: { contents: true } } },
+    });
+    if (!screen || screen._count.contents > 0) continue;
+    await prisma.screenContent.createMany({ data: items.map((item, position) => ({ ...item, screenId: screen.id, position })) });
+    created += items.length;
+  }
+  console.log(`✔ ${created} contenidos de pantallas`);
+}
+
 // EJECUCIÓN
 
 try {
@@ -127,6 +177,8 @@ try {
   await seedCatalog();
   await seedDeliveryPersons(); // va después de los usuarios: necesita el de Diego
   await seedScreensAndSettings();
+  await seedPromotions();
+  await seedScreenContent(); // va al final: usa productos, promociones y pantallas
   console.log('Seed completado');
 } catch (error) {
   console.error('Error en el seed:', error);
