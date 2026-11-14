@@ -7,14 +7,15 @@ import { addDays, listDays, localDayRange, todayLocal } from '../../utils/dates.
 const ZERO = new Prisma.Decimal(0);
 const STATUSES = ['PENDIENTE', 'CONFIRMADO', 'EN_PREPARACION', 'LISTO', 'EN_CAMINO', 'ENTREGADO', 'CANCELADO'];
 const SOURCES = ['WHATSAPP', 'VITRINA', 'PUNTO_DE_VENTA', 'DOMICILIO'];
+const PAYMENT_METHODS = ['EFECTIVO', 'TRANSFERENCIA', 'NEQUI', 'DAVIPLATA', 'TARJETA', 'CONTRAENTREGA_EFECTIVO'];
 
 export async function getSummary(day = todayLocal()) {
   const { start, end } = localDayRange(day);
   const inDay = { createdAt: { gte: start, lt: end } };
   const notCancelled = { ...inDay, status: { not: 'CANCELADO' } };
 
-  // Cinco consultas independientes, ejecutadas juntas
-  const [byStatus, bySource, sales, delivered, pending] = await prisma.$transaction([
+  // Seis consultas independientes, ejecutadas juntas
+  const [byStatus, bySource, sales, delivered, pending, payments] = await prisma.$transaction([
     prisma.order.groupBy({ by: ['status'], where: inDay, _count: { _all: true }, orderBy: { status: 'asc' } }),
     prisma.order.groupBy({
       by: ['source'],
@@ -30,7 +31,20 @@ export async function getSummary(day = todayLocal()) {
       _count: { _all: true },
       _sum: { total: true },
     }),
+    // Dinero RECIBIDO ese día (pagos vigentes), agrupado por método
+    prisma.payment.groupBy({
+      by: ['method'],
+      where: { ...inDay, status: 'PAGADO' },
+      _count: { _all: true },
+      _sum: { amount: true },
+      orderBy: { method: 'asc' },
+    }),
   ]);
+
+  const paymentStats = PAYMENT_METHODS.map((method) => {
+    const row = payments.find((r) => r.method === method);
+    return { method, payments: row?._count._all ?? 0, total: row?._sum.amount ?? ZERO };
+  });
 
   // groupBy solo devuelve los grupos que existen: completamos con 0 los que faltan
   const ordersByStatus = Object.fromEntries(STATUSES.map((s) => [s, 0]));
@@ -50,10 +64,12 @@ export async function getSummary(day = todayLocal()) {
       total, // pedidos del día que no están cancelados
       delivered: delivered._sum.total ?? ZERO, // ventas completadas (ENTREGADO)
       averageTicket: validOrders ? total.div(validOrders).toDecimalPlaces(0) : ZERO,
+      collected: paymentStats.reduce((sum, p) => sum.add(p.total), ZERO), // dinero efectivamente recibido
     },
     orders: { total: Object.values(ordersByStatus).reduce((a, b) => a + b, 0), byStatus: ordersByStatus },
     pendingPayments: { orders: pending._count._all, amount: pending._sum.total ?? ZERO },
     bySource: salesBySource,
+    byPaymentMethod: paymentStats,
   };
 }
 

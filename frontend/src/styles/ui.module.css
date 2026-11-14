@@ -1,0 +1,208 @@
+/* Estilos compartidos por las páginas de las Fases 10 y 11.
+   Se importan así:  import ui from '../../styles/ui.module.css';  */
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.title {
+  margin: 0;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+}
+
+/* ---------- Botones */
+.button {
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.danger {
+  color: var(--tone-danger);
+  border-color: var(--tone-danger-bg);
+}
+
+.small {
+  padding: 4px 10px;
+  font-size: 0.82rem;
+}
+
+/* ---------- Campos */
+.input {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  min-width: 0;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ---------- Avisos */
+.alert,
+.success,
+.info {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  margin: 0 0 16px;
+}
+
+.alert {
+  background: var(--tone-danger-bg);
+  color: var(--tone-danger);
+}
+
+.success {
+  background: var(--tone-success-bg);
+  color: var(--tone-success);
+}
+
+.info {
+  background: var(--tone-info-bg);
+  color: var(--tone-info);
+}
+
+/* ---------- Tarjetas y secciones */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+}
+
+.cardTitle {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.section {
+  margin-bottom: 28px;
+}
+
+.sectionTitle {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+}
+
+.empty {
+  padding: 16px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ---------- Tablas */
+.tableWrap {
+  overflow-x: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table th {
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.strong {
+  font-weight: 700;
+}
+
+/* ---------- Etiquetas de estado (mismos tonos que los pedidos) */
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--badge-color);
+  background: var(--badge-bg);
+}
+
+.badge[data-tone='neutral'] { --badge-color: var(--tone-neutral); --badge-bg: var(--tone-neutral-bg); }
+.badge[data-tone='info'] { --badge-color: var(--tone-info); --badge-bg: var(--tone-info-bg); }
+.badge[data-tone='warning'] { --badge-color: var(--tone-warning); --badge-bg: var(--tone-warning-bg); }
+.badge[data-tone='success'] { --badge-color: var(--tone-success); --badge-bg: var(--tone-success-bg); }
+.badge[data-tone='accent'] { --badge-color: var(--tone-accent); --badge-bg: var(--tone-accent-bg); }
+.badge[data-tone='done'] { --badge-color: var(--tone-done); --badge-bg: var(--tone-done-bg); }
+.badge[data-tone='danger'] { --badge-color: var(--tone-danger); --badge-bg: var(--tone-danger-bg); }

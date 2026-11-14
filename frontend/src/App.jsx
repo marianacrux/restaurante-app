@@ -7,6 +7,9 @@ import HomePage from './pages/HomePage.jsx';
 import OrdersPage from './pages/OrdersPage.jsx';
 import KitchenPage from './pages/kitchen/KitchenPage.jsx';
 import DashboardPage from './pages/dashboard/DashboardPage.jsx';
+import DeliveriesPage from './pages/deliveries/DeliveriesPage.jsx';
+import MyDeliveriesPage from './pages/deliveries/MyDeliveriesPage.jsx';
+import PaymentsPage from './pages/payments/PaymentsPage.jsx';
 
 export default function App() {
   return (
@@ -26,9 +29,14 @@ export default function App() {
           <Route path="/inicio" element={<HomePage />} />
           <Route element={<ProtectedRoute roles={['ADMIN', 'CAJERO']} />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/domicilios" element={<DeliveriesPage />} />
+            <Route path="/pagos" element={<PaymentsPage />} />
           </Route>
           <Route element={<ProtectedRoute roles={['ADMIN', 'CAJERO', 'COCINA']} />}>
             <Route path="/pedidos" element={<OrdersPage />} />
+          </Route>
+          <Route element={<ProtectedRoute roles={['DOMICILIARIO']} />}>
+            <Route path="/mis-entregas" element={<MyDeliveriesPage />} />
           </Route>
         </Route>
       </Route>

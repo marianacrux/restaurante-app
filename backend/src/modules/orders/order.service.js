@@ -4,6 +4,7 @@ import { AppError } from '../../utils/AppError.js';
 import { getDeliveryFee } from '../settings/setting.service.js';
 import { buildOrderLines, computeTotal } from './order.pricing.js';
 import { DELIVERY_ONLY_STATUSES, ROLE_ALLOWED_TARGETS, STATUS_TRANSITIONS } from './order.constants.js';
+import { cancelActiveDelivery } from '../deliveries/delivery.helpers.js';
 
 const userName = { select: { id: true, name: true } };
 
@@ -64,10 +65,12 @@ export async function getOrder(id) {
   return order;
 }
 
-export async function listOrders({ status, source, page, pageSize }) {
+export async function listOrders({ status, source, type, paymentStatus, page, pageSize }) {
   const where = {
     ...(status && { status: { in: status } }),
     ...(source && { source }),
+    ...(type && { type }),
+    ...(paymentStatus && { paymentStatus: { in: paymentStatus } }),
   };
 
   // Dos consultas juntas: cuántos hay en total y los de esta página
@@ -75,7 +78,11 @@ export async function listOrders({ status, source, page, pageSize }) {
     prisma.order.count({ where }),
     prisma.order.findMany({
       where,
-      include: { customer: { select: { name: true, phone: true } }, items: { select: { productName: true, quantity: true, notes: true } } },
+      include: {
+        customer: { select: { name: true, phone: true } },
+        items: { select: { productName: true, quantity: true, notes: true } },
+        payments: { where: { status: 'PAGADO' }, select: { amount: true } }, // para calcular el saldo
+      },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -120,6 +127,8 @@ export async function changeOrderStatus(id, { status, note, cancelReason }, user
     }
 
     await transitionOrderStatus(tx, order, status, { userId: user.id, note, cancelReason });
+    // Un pedido cancelado mientras iba en camino libera a su domiciliario.
+    if (status === 'CANCELADO') await cancelActiveDelivery(tx, order.id);
   });
 
   return getOrder(id);

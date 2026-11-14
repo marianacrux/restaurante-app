@@ -4,7 +4,7 @@ import { fetchSalesByDay, fetchSummary } from '../../services/dashboard.service.
 import { getErrorMessage } from '../../services/api.js';
 import StatCard from '../../components/StatCard.jsx';
 import { BarList, ColumnChart } from '../../components/Charts.jsx';
-import { ORDER_SOURCE, ORDER_STATUS } from '../../utils/constants.js';
+import { ORDER_SOURCE, ORDER_STATUS, PAYMENT_METHOD } from '../../utils/constants.js';
 import { formatMoney, formatShortDay, formatTime, todayLocal } from '../../utils/format.js';
 import styles from './DashboardPage.module.css';
 
@@ -110,6 +110,20 @@ function DashboardContent({ summary, sales }) {
             value: Number(s.total),
             display: formatMoney(s.total),
             hint: `${s.orders} ${s.orders === 1 ? 'pedido' : 'pedidos'}`,
+          }))}
+        />
+      </section>
+
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>Dinero recibido · {formatMoney(summary.sales.collected)}</h2>
+        <BarList
+          emptyText="Aún no se han registrado pagos este día"
+          rows={summary.byPaymentMethod.map((m) => ({
+            key: m.method,
+            label: PAYMENT_METHOD[m.method],
+            value: Number(m.total),
+            display: formatMoney(m.total),
+            hint: `${m.payments} ${m.payments === 1 ? 'pago' : 'pagos'}`,
           }))}
         />
       </section>

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { OrderSource, OrderStatus, OrderType, PaymentMethod } from '@prisma/client';
+import { OrderSource, OrderStatus, OrderType, PaymentMethod, PaymentStatus } from '@prisma/client';
 import { phoneSchema, prismaEnum } from '../../utils/validation.js';
 
 const customerSchema = z.object({
@@ -48,6 +48,12 @@ const statusList = z
 export const listOrdersQuerySchema = z.object({
   status: statusList.optional(),
   source: prismaEnum(OrderSource, 'Canal no válido').optional(),
+  type: prismaEnum(OrderType, 'Tipo de entrega no válido').optional(),
+  paymentStatus: z
+    .string()
+    .transform((v) => v.split(',').map((s) => s.trim()).filter(Boolean))
+    .pipe(z.array(prismaEnum(PaymentStatus, 'Estado de pago no válido')).min(1))
+    .optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });

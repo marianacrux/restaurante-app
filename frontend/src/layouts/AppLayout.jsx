@@ -8,6 +8,9 @@ const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', roles: ['ADMIN', 'CAJERO'] },
   { to: '/pedidos', label: 'Pedidos', roles: ['ADMIN', 'CAJERO', 'COCINA'] },
   { to: '/cocina', label: 'Cocina', roles: ['ADMIN', 'CAJERO', 'COCINA'] },
+  { to: '/domicilios', label: 'Domicilios', roles: ['ADMIN', 'CAJERO'] },
+  { to: '/pagos', label: 'Pagos', roles: ['ADMIN', 'CAJERO'] },
+  { to: '/mis-entregas', label: 'Mis entregas', roles: ['DOMICILIARIO'] },
 ];
 
 export default function AppLayout() {

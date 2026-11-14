@@ -6,6 +6,9 @@ import categoryRoutes from './modules/categories/category.routes.js';
 import productRoutes from './modules/products/product.routes.js';
 import orderRoutes from './modules/orders/order.routes.js';
 import dashboardRoutes from './modules/dashboard/dashboard.routes.js';
+import deliveryPersonRoutes from './modules/delivery-persons/deliveryPerson.routes.js';
+import deliveryRoutes from './modules/deliveries/delivery.routes.js';
+import paymentRoutes from './modules/payments/payment.routes.js';
 
 export function createApp() {
   const app = express();
@@ -23,8 +26,12 @@ export function createApp() {
   app.use('/api/products', productRoutes);
   app.use('/api/orders', orderRoutes);
   app.use('/api/dashboard', dashboardRoutes);
+  // Fase 10
+  app.use('/api/delivery-persons', deliveryPersonRoutes);
+  app.use('/api/deliveries', deliveryRoutes);
+  app.use('/api/payments', paymentRoutes);
 
-  app.use(notFoundHandler); // ninguna ruta coincidió 
+  app.use(notFoundHandler); // ninguna ruta coincidió
   app.use(errorHandler);    // cualquier error que ocurra arriba llega aquí
   return app;
 }
