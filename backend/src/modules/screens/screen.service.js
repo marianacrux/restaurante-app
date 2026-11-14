@@ -157,3 +157,26 @@ export async function listPromotions() {
   });
   return promotions.map((p) => ({ ...p, live: isPromotionLive(p), finalPrice: promoPrice(p) }));
 }
+
+async function assertProductExists(productId) {
+  if (!productId) return;
+  const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
+  if (!product) throw AppError.badRequest('El producto de la promoción no existe');
+}
+
+export async function createPromotion(data) {
+  await assertProductExists(data.productId);
+  return prisma.promotion.create({ data });
+}
+
+export async function updatePromotion(id, data) {
+  const current = await prisma.promotion.findUnique({ where: { id } });
+  if (!current) throw AppError.notFound('Promoción no encontrada');
+  await assertProductExists(data.productId);
+  const merged = { ...current, ...data };
+  if (merged.endDate <= merged.startDate) throw AppError.badRequest('La fecha de fin debe ser posterior al inicio');
+  if (merged.discountType === 'PORCENTAJE' && Number(merged.discountValue) > 100) {
+    throw AppError.badRequest('Un porcentaje no puede superar 100');
+  }
+  return prisma.promotion.update({ where: { id }, data });
+}

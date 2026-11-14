@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth.js';
 import { sectionsFor } from '../auth/access.js';
 import NavIcon from '../components/NavIcon.jsx';
 import UserMenu from '../components/UserMenu.jsx';
+import LiveIndicator from '../components/LiveIndicator.jsx';
 
 export default function AppLayout() {
   const { user } = useAuth();
@@ -30,7 +31,10 @@ export default function AppLayout() {
               Restaurante
             </Text>
           </Group>
-          <UserMenu />
+          <Group gap="sm" wrap="nowrap">
+            <LiveIndicator />
+            <UserMenu />
+          </Group>
         </Group>
       </AppShell.Header>
 

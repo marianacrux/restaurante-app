@@ -10,7 +10,7 @@ import { BarList, ColumnChart } from '../../components/Charts.jsx';
 import { ORDER_SOURCE, ORDER_STATUS, PAYMENT_METHOD } from '../../utils/constants.js';
 import { formatMoney, formatShortDay, formatTime, todayLocal } from '../../utils/format.js';
 
-const REFRESH_MS = 30000; // se actualiza solo cada 30 segundos
+const REFRESH_MS = 60000; // respaldo: los cambios llegan al instante por Socket.IO
 
 export default function DashboardPage() {
   const [day, setDay] = useState(todayLocal);
@@ -18,13 +18,13 @@ export default function DashboardPage() {
     () => Promise.all([fetchSummary(day), fetchSalesByDay({ to: day })]).then(([summary, sales]) => ({ summary, sales })),
     [day],
   );
-  const { data, error, loading, reload, updatedAt } = useApi(load, { interval: REFRESH_MS });
+  const { data, error, loading, reload, updatedAt } = useApi(load, { topics: ['dashboard', 'orders', 'payments'], interval: REFRESH_MS });
 
   return (
     <>
       <PageHeader
         title="Dashboard"
-        subtitle={updatedAt ? `Actualizado ${formatTime(updatedAt.toISOString())} · se refresca cada 30 s` : 'Cargando…'}
+        subtitle={updatedAt ? `Actualizado ${formatTime(updatedAt.toISOString())} · en vivo` : 'Cargando…'}
       >
         <TextInput
           type="date"

@@ -16,7 +16,8 @@ import {
   TextInput,
   Textarea,
 } from '@mantine/core';
-import { IconAlertCircle, IconDotsVertical, IconRefresh, IconSearch, IconX } from '@tabler/icons-react';
+import { IconAlertCircle, IconDotsVertical, IconPlus, IconRefresh, IconSearch, IconX } from '@tabler/icons-react';
+import { Link } from 'react-router-dom';
 import { changeOrderStatus, fetchOrders } from '../services/orders.service.js';
 import { useApi } from '../hooks/useApi.js';
 import { useAuth } from '../hooks/useAuth.js';
@@ -24,6 +25,7 @@ import { can } from '../auth/access.js';
 import PageHeader from '../components/PageHeader.jsx';
 import Badge from '../components/Badge.jsx';
 import EmptyState from '../components/EmptyState.jsx';
+import OrderDrawer from '../components/OrderDrawer.jsx';
 import { notifyError, notifySuccess } from '../utils/notify.js';
 import { ORDER_SOURCE, ORDER_STATUS, ORDER_TYPE, PAYMENT_STATUS, STATUS_ACTION_LABEL, toOptions } from '../utils/constants.js';
 import { formatMoney, formatTime } from '../utils/format.js';
@@ -45,12 +47,13 @@ export default function OrdersPage() {
   const [busyId, setBusyId] = useState(null);
   const [cancelling, setCancelling] = useState(null); // pedido a cancelar (abre la ventana)
   const [reason, setReason] = useState('');
+  const [detailId, setDetailId] = useState(null); // pedido abierto en el panel lateral
 
   const load = useCallback(
     () => fetchOrders({ status: status === 'ALL' ? undefined : status, source: source ?? undefined, page, pageSize: PAGE_SIZE }),
     [status, source, page],
   );
-  const { data, error, loading, reload, updatedAt } = useApi(load, { interval: 20000 });
+  const { data, error, loading, reload, updatedAt } = useApi(load, { topics: ['orders'], interval: 60000 });
 
   // La búsqueda filtra la página actual (número de pedido, cliente o teléfono).
   const term = search.trim().toLowerCase();
@@ -95,8 +98,13 @@ export default function OrdersPage() {
     <>
       <PageHeader
         title="Pedidos"
-        subtitle={`${data?.pagination.total ?? '…'} pedidos · ${updatedAt ? `actualizado ${formatTime(updatedAt.toISOString())}` : 'cargando'} · se refresca cada 20 s`}
+        subtitle={`${data?.pagination.total ?? '…'} pedidos · ${updatedAt ? `actualizado ${formatTime(updatedAt.toISOString())}` : 'cargando'} · en vivo · toca un pedido para ver su detalle`}
       >
+        {can(user, 'orders.create') && (
+          <Button component={Link} to="/pedidos/nuevo" leftSection={<IconPlus size={16} />}>
+            Nuevo pedido
+          </Button>
+        )}
         <Button variant="default" leftSection={<IconRefresh size={16} />} onClick={reload}>
           Actualizar
         </Button>
@@ -154,7 +162,7 @@ export default function OrdersPage() {
                 {orders.map((order) => {
                   const actions = can(user, 'orders.changeStatus') ? order.availableStatuses : [];
                   return (
-                    <Table.Tr key={order.id}>
+                    <Table.Tr key={order.id} onClick={() => setDetailId(order.id)} style={{ cursor: 'pointer' }}>
                       <Table.Td fw={700}>#{order.orderNumber}</Table.Td>
                       <Table.Td>{formatTime(order.createdAt)}</Table.Td>
                       <Table.Td>
@@ -185,7 +193,7 @@ export default function OrdersPage() {
                       <Table.Td>
                         <Badge info={ORDER_STATUS[order.status]} />
                       </Table.Td>
-                      <Table.Td>
+                      <Table.Td onClick={(e) => e.stopPropagation()}>
                         {actions.length > 0 && (
                           <Menu position="bottom-end" withinPortal>
                             <Menu.Target>
@@ -222,6 +230,8 @@ export default function OrdersPage() {
           <Pagination total={data.pagination.totalPages} value={page} onChange={setPage} />
         </Group>
       )}
+
+      <OrderDrawer orderId={detailId} onClose={() => setDetailId(null)} />
 
       <Modal opened={Boolean(cancelling)} onClose={() => setCancelling(null)} title={`Cancelar pedido #${cancelling?.orderNumber ?? ''}`}>
         <Stack>

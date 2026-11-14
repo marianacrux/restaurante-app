@@ -3,7 +3,7 @@ import { authenticate, authorize } from '../../middlewares/auth.js';
 import { validate } from '../../middlewares/validate.js';
 import { idParamSchema } from '../../utils/validation.js';
 import * as service from './order.service.js';
-import { changeStatusSchema, createOrderSchema, listOrdersQuerySchema } from './order.validator.js';
+import { addItemsSchema, changeStatusSchema, createOrderSchema, listOrdersQuerySchema, updateOrderSchema } from './order.validator.js';
 
 const router = Router();
 
@@ -40,5 +40,20 @@ router.patch(
     res.json(withActions(await service.changeOrderStatus(req.valid.params.id, req.valid.body, req.user), req.user));
   },
 );
+
+// Agregar productos (mientras el pedido no haya entrado a preparación)
+router.post(
+  '/:id/items',
+  authorize('ADMIN', 'CAJERO'),
+  validate({ params: idParamSchema, body: addItemsSchema }),
+  async (req, res) => {
+    res.status(201).json(withActions(await service.addItems(req.valid.params.id, req.valid.body.items, req.user), req.user));
+  },
+);
+
+// Modificar información permitida
+router.patch('/:id', authorize('ADMIN', 'CAJERO'), validate({ params: idParamSchema, body: updateOrderSchema }), async (req, res) => {
+  res.json(withActions(await service.updateOrderInfo(req.valid.params.id, req.valid.body, req.user), req.user));
+});
 
 export default router;

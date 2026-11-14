@@ -359,3 +359,27 @@ model Setting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+// REPORTES
+
+enum ReportTrigger {
+  AUTOMATICO // lo generó el programador de cada hora
+  MANUAL // lo pidió el administrador con el botón
+}
+
+/// Registro de cada reporte por hora enviado al Excel de la empresa (auditoría).
+model ReportRun {
+  id          Int           @id @default(autoincrement())
+  trigger     ReportTrigger
+  periodStart DateTime // inicio de la hora reportada
+  periodEnd   DateTime // fin de la hora reportada
+  orders      Int // pedidos creados en la hora (sin cancelados)
+  sales       Decimal       @db.Decimal(12, 2)
+  collected   Decimal       @db.Decimal(12, 2)
+  success     Boolean
+  error       String?
+  filePath    String?
+  createdAt   DateTime      @default(now())
+
+  @@index([createdAt])
+}

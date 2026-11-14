@@ -28,13 +28,14 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { useSpeechAnnouncer } from '../../hooks/useSpeechAnnouncer.js';
 import { changeOrderStatus, fetchOrders } from '../../services/orders.service.js';
 import { getErrorMessage } from '../../services/api.js';
+import { subscribe } from '../../services/socket.js';
 import { notifyError } from '../../utils/notify.js';
 import UserMenu from '../../components/UserMenu.jsx';
 import { ORDER_SOURCE, ORDER_TYPE } from '../../utils/constants.js';
 import { formatTime } from '../../utils/format.js';
 import { buildAnnouncement } from './announcement.js';
 
-const POLL_MS = 5000; // cada 5 segundos se consulta la API
+const POLL_MS = 15000; // respaldo: los pedidos nuevos llegan al instante por Socket.IO
 const HIGHLIGHT_MS = 20000; // cuánto tiempo se resalta un pedido nuevo
 const LATE_MINUTES = 20; // a partir de aquí el tiempo de espera se pinta en rojo
 
@@ -100,6 +101,9 @@ export default function KitchenPage() {
       clearInterval(timer);
     };
   }, [reloadCount, announce]);
+
+  // Tiempo real: en cuanto el backend avisa que cambió un pedido, se recarga (y se anuncia por voz)
+  useEffect(() => subscribe(['orders'], () => setReloadCount((n) => n + 1)), []);
 
   async function advance(order, status) {
     setBusyId(order.id);
@@ -186,7 +190,7 @@ export default function KitchenPage() {
       )}
       {error && (
         <Alert color="red" mb="md">
-          {error} · se seguirá intentando cada 5 segundos.
+          {error} · se seguirá intentando automáticamente.
         </Alert>
       )}
       {banner && (

@@ -5,6 +5,7 @@ import { getDeliveryFee } from '../settings/setting.service.js';
 import { buildOrderLines, computeTotal } from './order.pricing.js';
 import { DELIVERY_ONLY_STATUSES, ROLE_ALLOWED_TARGETS, STATUS_TRANSITIONS } from './order.constants.js';
 import { cancelActiveDelivery } from '../deliveries/delivery.helpers.js';
+import { recomputeOrderPaymentStatus } from '../payments/payment.service.js';
 
 const userName = { select: { id: true, name: true } };
 
@@ -13,6 +14,8 @@ const detailInclude = {
   items: true,
   createdBy: userName,
   statusHistory: { include: { changedBy: userName }, orderBy: { createdAt: 'asc' } },
+  payments: { include: { recordedBy: userName }, orderBy: { createdAt: 'asc' } },
+  delivery: { include: { deliveryPerson: { select: { id: true, name: true, phone: true } } } },
 };
 
 /**
@@ -170,4 +173,63 @@ export async function getOrderHistory(id) {
     include: { changedBy: userName },
     orderBy: { createdAt: 'asc' },
   });
+}
+
+const EDITABLE_ITEMS = ['PENDIENTE', 'CONFIRMADO']; // cuando cocina empieza, ya no se agregan productos
+const CLOSED = ['ENTREGADO', 'CANCELADO'];
+
+/** Agrega productos a un pedido y recalcula subtotal, total y estado de pago (todo en el servidor). */
+export async function addItems(id, items, user) {
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${id} FOR UPDATE`; // nadie más lo modifica mientras tanto
+    const order = await tx.order.findUnique({ where: { id }, select: { id: true, status: true, discount: true, deliveryFee: true } });
+    if (!order) throw AppError.notFound('Pedido no encontrado');
+    if (!EDITABLE_ITEMS.includes(order.status)) {
+      throw AppError.conflict(`Solo se agregan productos a pedidos pendientes o confirmados (este está ${order.status})`);
+    }
+
+    const { lines } = await buildOrderLines(tx, items);
+    await tx.orderItem.createMany({ data: lines.map((l) => ({ ...l, orderId: id })) });
+
+    const agg = await tx.orderItem.aggregate({ where: { orderId: id }, _sum: { subtotal: true } });
+    const subtotal = agg._sum.subtotal ?? new Prisma.Decimal(0);
+    await tx.order.update({
+      where: { id },
+      data: { subtotal, total: computeTotal({ subtotal, discount: order.discount, deliveryFee: order.deliveryFee }) },
+    });
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId: id,
+        previousStatus: order.status,
+        newStatus: order.status,
+        changedById: user.id,
+        note: `Productos agregados: ${lines.map((l) => `${l.quantity} ${l.productName}`).join(', ')}`,
+      },
+    });
+    await recomputeOrderPaymentStatus(tx, id); // si estaba PAGADO, ahora puede quedar PARCIAL
+  });
+  return getOrder(id);
+}
+
+/** Cambia datos permitidos: notas, dirección, método de pago elegido, datos del cliente. */
+export async function updateOrderInfo(id, { customer, ...data }, user) {
+  await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({ where: { id }, select: { id: true, status: true, type: true } });
+    if (!order) throw AppError.notFound('Pedido no encontrado');
+    if (CLOSED.includes(order.status)) throw AppError.conflict(`El pedido está ${order.status}: ya no se puede modificar`);
+    if (data.deliveryAddress && order.type !== 'DOMICILIO') throw AppError.badRequest('Solo los pedidos a domicilio llevan dirección');
+
+    const savedCustomer = customer
+      ? await tx.customer.upsert({ where: { phone: customer.phone }, update: { name: customer.name }, create: customer })
+      : null;
+
+    await tx.order.update({ where: { id }, data: { ...data, ...(savedCustomer && { customerId: savedCustomer.id }) } });
+    const changed = [...Object.keys(data), ...(customer ? ['cliente'] : [])]
+      .map((k) => ({ notes: 'notas', deliveryAddress: 'dirección', paymentMethod: 'método de pago' })[k] ?? k)
+      .join(', ');
+    await tx.orderStatusHistory.create({
+      data: { orderId: id, previousStatus: order.status, newStatus: order.status, changedById: user.id, note: `Datos actualizados: ${changed}` },
+    });
+  });
+  return getOrder(id);
 }

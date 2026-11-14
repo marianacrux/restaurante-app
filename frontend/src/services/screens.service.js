@@ -28,6 +28,6 @@ export async function fetchPromotions() {
 }
 
 export async function fetchProducts() {
-  const { data } = await api.get('/products');
-  return data;
+  const { data } = await api.get('/products', { params: { includeInactive: true } });
+  return data.filter((p) => p.active);
 }

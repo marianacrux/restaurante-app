@@ -28,6 +28,8 @@ const STATUS_TEXT = {
 async function buildContext() {
   return {
     restaurantName: await getRestaurantName(),
+    // Enlace para que el cliente siga su pedido (página pública /seguimiento)
+    trackingUrl: (orderNumber, phone) => `${process.env.PUBLIC_APP_URL ?? 'http://localhost:5173'}/seguimiento?pedido=${orderNumber}&cel=${phone}`,
     async getMenu() {
       const products = await prisma.product.findMany({
         where: { active: true, available: true, category: { active: true } },

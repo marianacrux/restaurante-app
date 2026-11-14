@@ -50,7 +50,7 @@ export default function PaymentsPage() {
       ]).then(([orders, payments]) => ({ pending: orders.data, payments })),
     [day],
   );
-  const { data, error, loading, reload } = useApi(load, { interval: 30000 });
+  const { data, error, loading, reload } = useApi(load, { topics: ['payments', 'orders'], interval: 60000 });
 
   const [form, setForm] = useState(null); // cobro en curso (abre la ventana)
   const [refunding, setRefunding] = useState(null); // pago a reembolsar

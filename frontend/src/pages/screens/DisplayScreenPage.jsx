@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { fetchScreenDisplay } from '../../services/screens.service.js';
 import { getErrorMessage } from '../../services/api.js';
+import { subscribe } from '../../services/socket.js';
 import { formatMoney, formatTime } from '../../utils/format.js';
 import styles from './DisplayScreenPage.module.css';
 
 // Pantalla PÚBLICA para los televisores del restaurante (no inicia sesión).
 // Abre /pantalla/1 … /pantalla/4 en el navegador del televisor.
-const REFRESH_MS = 30000; // vuelve a pedir el contenido (precios y agotados en vivo)
+const REFRESH_MS = 60000; // respaldo: los cambios llegan al instante por Socket.IO
 const ROTATE_MS = 12000; // cambia de página cada 12 s
 const PAGE_SIZE = 8; // casillas por página (4 × 2)
 const THEMES = { 1: 'warm', 2: 'promo', 3: 'fresh', 4: 'dark' };
@@ -43,9 +44,13 @@ export default function DisplayScreenPage() {
     }
     load();
     const timer = setInterval(load, REFRESH_MS);
+    // Tiempo real: si el administrador edita la pantalla, cambia un precio o marca un agotado,
+    // el televisor se actualiza al instante.
+    const unsubscribe = subscribe(['screens', 'products', 'promotions', 'settings'], load);
     return () => {
       ignore = true;
       clearInterval(timer);
+      unsubscribe();
     };
   }, [number]);
 

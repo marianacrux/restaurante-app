@@ -14,7 +14,7 @@ import { formatMoney, formatTime } from '../../utils/format.js';
 // El backend solo le devuelve SUS entregas, así que aquí no se filtra por persona.
 export default function MyDeliveriesPage() {
   const load = useCallback(() => fetchDeliveries(), []);
-  const { data, error, loading, reload } = useApi(load, { interval: 15000 });
+  const { data, error, loading, reload } = useApi(load, { topics: ['deliveries'], interval: 60000 });
   const [confirming, setConfirming] = useState(null); // entrega a confirmar (abre la ventana)
   const [busy, setBusy] = useState(false);
 
@@ -37,7 +37,7 @@ export default function MyDeliveriesPage() {
 
   return (
     <>
-      <PageHeader title="Mis entregas" subtitle="Se actualiza cada 15 s" />
+      <PageHeader title="Mis entregas" subtitle="Las entregas nuevas aparecen al instante" />
 
       {error && (
         <Alert color="red" icon={<IconAlertCircle size={18} />} mb="md">

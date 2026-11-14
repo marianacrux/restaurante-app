@@ -289,6 +289,7 @@ async function handleConfirm(cmd, data, ctx) {
         data.type === 'DOMICILIO'
           ? '👨‍🍳 Ya está en cocina. Te avisaremos cuando salga el domiciliario.'
           : '👨‍🍳 Ya está en cocina. Te esperamos en el restaurante.',
+        `📲 Sigue tu pedido en vivo: ${ctx.trackingUrl(order.orderNumber, data.phone)}`,
         'Escribe *ESTADO* para consultar tu pedido o *NUEVO* para hacer otro.',
       ],
     };

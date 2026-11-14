@@ -12,3 +12,6 @@ dist/
 # Registros y archivos del sistema
 *.log
 .DS_Store
+# Imágenes subidas y reportes generados (datos, no código)
+backend/uploads/
+backend/reports/

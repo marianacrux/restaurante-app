@@ -12,6 +12,12 @@ import paymentRoutes from './modules/payments/payment.routes.js';
 import simulatorRoutes from './modules/whatsapp/simulator.routes.js';
 import screenRoutes from './modules/screens/screen.routes.js';
 import promotionRoutes from './modules/screens/promotion.routes.js';
+import userRoutes from './modules/users/user.routes.js';
+import settingRoutes from './modules/settings/setting.routes.js';
+import reportRoutes from './modules/reports/report.routes.js';
+import publicRoutes from './modules/public/public.routes.js';
+import uploadRoutes, { UPLOADS_DIR } from './modules/uploads/upload.routes.js';
+import { realtimeNotifier } from './realtime/socket.js';
 
 export function createApp() {
   const app = express();
@@ -19,6 +25,10 @@ export function createApp() {
   app.disable('x-powered-by'); // no anunciar que el servidor usa Express
   app.set('trust proxy', 'loopback'); // req.ip correcto detrás del proxy de Vite (para el límite de intentos de login)
   app.use(express.json({ limit: '100kb' }));
+  app.use(realtimeNotifier); // avisa por Socket.IO cuando algo cambia (ver realtime/socket.js)
+
+  // Imágenes subidas (productos, promociones, pantallas)
+  app.use('/uploads', express.static(UPLOADS_DIR, { maxAge: '7d' }));
 
   app.get('/api/health', async (req, res) => {
     const [row] = await prisma.$queryRaw`
@@ -39,6 +49,12 @@ export function createApp() {
   app.use('/api/whatsapp-simulator', simulatorRoutes);
   app.use('/api/screens', screenRoutes);
   app.use('/api/promotions', promotionRoutes);
+  // Administración y nuevas funciones
+  app.use('/api/users', userRoutes);
+  app.use('/api/settings', settingRoutes);
+  app.use('/api/reports', reportRoutes);
+  app.use('/api/uploads', uploadRoutes);
+  app.use('/api/public', publicRoutes); // seguimiento de pedidos para clientes
 
   app.use(notFoundHandler); // ninguna ruta coincidió
   app.use(errorHandler);    // cualquier error que ocurra arriba llega aquí

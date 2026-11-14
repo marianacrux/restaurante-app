@@ -8,6 +8,12 @@ import { ROLE_COLOR, ROLE_LABEL } from '../utils/constants.js';
 
 const DESCRIPTION = {
   '/dashboard': 'Ventas, pedidos por estado y dinero recibido del día.',
+  '/pedidos/nuevo': 'Registra pedidos de mostrador, vitrina o domicilio telefónico.',
+  '/productos': 'Crea y edita productos, fotos, precios, categorías y agotados.',
+  '/promociones': 'Descuentos y combos con fechas de vigencia.',
+  '/reportes': 'Reporte automático cada hora en el Excel de la empresa.',
+  '/usuarios': 'Cuentas del personal, roles y contraseñas.',
+  '/ajustes': 'Nombre del restaurante y costo del domicilio.',
   '/pedidos': 'Todos los pedidos, con filtros y cambios de estado.',
   '/cocina': 'Tablero de cocina en pantalla completa con avisos de voz.',
   '/domicilios': 'Despacha pedidos listos y controla a los domiciliarios.',

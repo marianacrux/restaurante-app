@@ -7,7 +7,7 @@ const customerSchema = z.object({
   phone: phoneSchema,
 });
 
-const itemSchema = z.object({
+export const itemSchema = z.object({
   productId: z.coerce.number({ error: 'Producto inválido' }).int().positive('Producto inválido'),
   quantity: z.coerce.number({ error: 'Cantidad inválida' }).int('La cantidad debe ser entera').min(1, 'Mínimo 1').max(99, 'Máximo 99'),
   notes: z.string().trim().max(200).nullish(), 
@@ -68,3 +68,18 @@ export const changeStatusSchema = z
     path: ['cancelReason'],
     message: 'El motivo es obligatorio al cancelar',
   });
+
+// Agregar productos a un pedido existente (POST /api/orders/:id/items)
+export const addItemsSchema = z.object({
+  items: z.array(itemSchema, { error: 'Los productos son obligatorios' }).min(1, 'Agregue al menos un producto').max(30),
+});
+
+// Modificar información permitida (PATCH /api/orders/:id). Nunca precios ni totales.
+export const updateOrderSchema = z
+  .object({
+    notes: z.string().trim().max(500).nullish(),
+    deliveryAddress: z.string().trim().min(5, 'Dirección muy corta').max(250).optional(),
+    paymentMethod: prismaEnum(PaymentMethod, 'Método de pago no válido').nullish(),
+    customer: customerSchema.optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, 'No se envió ningún cambio');

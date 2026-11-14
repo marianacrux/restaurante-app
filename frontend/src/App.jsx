@@ -20,6 +20,13 @@ const PaymentsPage = lazy(() => import('./pages/payments/PaymentsPage.jsx'));
 const WhatsAppSimulatorPage = lazy(() => import('./pages/whatsapp/WhatsAppSimulatorPage.jsx'));
 const ScreensAdminPage = lazy(() => import('./pages/screens/ScreensAdminPage.jsx'));
 const DisplayScreenPage = lazy(() => import('./pages/screens/DisplayScreenPage.jsx'));
+const NewOrderPage = lazy(() => import('./pages/orders/NewOrderPage.jsx'));
+const ProductsPage = lazy(() => import('./pages/products/ProductsPage.jsx'));
+const PromotionsPage = lazy(() => import('./pages/admin/PromotionsPage.jsx'));
+const UsersPage = lazy(() => import('./pages/admin/UsersPage.jsx'));
+const SettingsPage = lazy(() => import('./pages/admin/SettingsPage.jsx'));
+const ReportsPage = lazy(() => import('./pages/admin/ReportsPage.jsx'));
+const TrackOrderPage = lazy(() => import('./pages/public/TrackOrderPage.jsx'));
 
 /** "/" y rutas desconocidas: cada rol va a SU página principal (o al login). */
 function HomeRedirect() {
@@ -43,6 +50,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/estado" element={<StatusPage />} />
         <Route path="/pantalla/:number" element={<DisplayScreenPage />} /> {/* televisores */}
+        <Route path="/seguimiento" element={<TrackOrderPage />} /> {/* clientes */}
 
         <Route element={<ProtectedRoute />}>
           {/* Cocina: pantalla completa, sin menú lateral */}
@@ -53,6 +61,12 @@ export default function App() {
             <Route path="/inicio" element={<HomePage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/pedidos" element={<OrdersPage />} />
+            <Route path="/pedidos/nuevo" element={<NewOrderPage />} />
+            <Route path="/productos" element={<ProductsPage />} />
+            <Route path="/promociones" element={<PromotionsPage />} />
+            <Route path="/usuarios" element={<UsersPage />} />
+            <Route path="/ajustes" element={<SettingsPage />} />
+            <Route path="/reportes" element={<ReportsPage />} />
             <Route path="/domicilios" element={<DeliveriesPage />} />
             <Route path="/mis-entregas" element={<MyDeliveriesPage />} />
             <Route path="/pagos" element={<PaymentsPage />} />

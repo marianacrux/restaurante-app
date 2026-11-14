@@ -15,7 +15,9 @@ import {
   Text,
   Title,
 } from '@mantine/core';
-import { IconAlertCircle, IconMapPin, IconMotorbike, IconPackage, IconRefresh, IconUsers } from '@tabler/icons-react';
+import { ActionIcon } from '@mantine/core';
+import { IconAlertCircle, IconEdit, IconMapPin, IconMotorbike, IconPackage, IconRefresh, IconUserPlus, IconUsers } from '@tabler/icons-react';
+import CourierModal from './CourierModal.jsx';
 import { fetchOrders } from '../../services/orders.service.js';
 import {
   assignDelivery,
@@ -34,19 +36,20 @@ import { notifyError, notifySuccess } from '../../utils/notify.js';
 import { COURIER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS, TRANSPORT_TYPE } from '../../utils/constants.js';
 import { formatMoney, formatTime } from '../../utils/format.js';
 
-const REFRESH_MS = 15000; // la cocina marca pedidos LISTOS en cualquier momento
+const REFRESH_MS = 60000; // respaldo: los cambios llegan al instante por Socket.IO
 
 const loadAll = () =>
   Promise.all([
     fetchOrders({ status: 'LISTO', type: 'DOMICILIO', pageSize: 50 }),
     fetchDeliveries({ status: 'ASIGNADO,EN_CAMINO' }),
-    fetchDeliveryPersons(),
+    fetchDeliveryPersons({ includeInactive: true }),
   ]).then(([orders, onTheWay, couriers]) => ({ ready: orders.data, onTheWay, couriers }));
 
 export default function DeliveriesPage() {
   const { user } = useAuth();
   // loadAll está fuera del componente: es siempre la misma función (no necesita useCallback)
-  const { data, error, loading, reload } = useApi(loadAll, { interval: REFRESH_MS });
+  const { data, error, loading, reload } = useApi(loadAll, { topics: ['orders', 'deliveries', 'couriers'], interval: REFRESH_MS });
+  const [editingCourier, setEditingCourier] = useState(null);
   const [busy, setBusy] = useState(null); // id de lo que se está guardando
   const [selected, setSelected] = useState({}); // { [orderId]: deliveryPersonId }
 
@@ -69,7 +72,12 @@ export default function DeliveriesPage() {
 
   return (
     <>
-      <PageHeader title="Domicilios" subtitle="Despacho de pedidos listos · se actualiza cada 15 s">
+      <PageHeader title="Domicilios" subtitle="Despacho de pedidos listos · en vivo">
+        {can(user, 'couriers.manage') && (
+          <Button variant="default" leftSection={<IconUserPlus size={16} />} onClick={() => setEditingCourier({})}>
+            Nuevo domiciliario
+          </Button>
+        )}
         <Button variant="default" leftSection={<IconRefresh size={16} />} onClick={reload}>
           Actualizar
         </Button>
@@ -213,7 +221,7 @@ export default function DeliveriesPage() {
           {/* ---------------- Domiciliarios ---------------- */}
           <Tabs.Panel value="couriers">
             <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }} spacing="md">
-              {data.couriers.map((c) => {
+              {data.couriers.filter((c) => c.active || can(user, 'couriers.manage')).map((c) => {
                 const next = c.availability === 'DISPONIBLE' ? 'INACTIVO' : 'DISPONIBLE';
                 return (
                   <Card key={c.id} padding="lg">
@@ -229,7 +237,14 @@ export default function DeliveriesPage() {
                           </Text>
                         </div>
                       </Group>
-                      <Badge info={COURIER_STATUS[c.availability]} />
+                      <Group gap={4} wrap="nowrap">
+                        {c.active ? <Badge info={COURIER_STATUS[c.availability]} /> : <Badge info={{ label: 'Desactivado', color: 'gray' }} />}
+                        {can(user, 'couriers.manage') && (
+                          <ActionIcon variant="subtle" onClick={() => setEditingCourier(c)} aria-label={`Editar ${c.name}`}>
+                            <IconEdit size={16} />
+                          </ActionIcon>
+                        )}
+                      </Group>
                     </Group>
                     <Stack gap={2} mt="md">
                       <Text size="sm">
@@ -241,7 +256,7 @@ export default function DeliveriesPage() {
                         </Text>
                       )}
                     </Stack>
-                    {can(user, 'couriers.setAvailability') && c.availability !== 'OCUPADO' && (
+                    {can(user, 'couriers.setAvailability') && c.active && c.availability !== 'OCUPADO' && (
                       <Button
                         mt="md"
                         variant="light"
@@ -261,6 +276,7 @@ export default function DeliveriesPage() {
           </Tabs.Panel>
         </Tabs>
       )}
+      {editingCourier && <CourierModal courier={editingCourier} onClose={() => setEditingCourier(null)} onSaved={reload} />}
     </>
   );
 }
