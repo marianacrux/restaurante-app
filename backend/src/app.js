@@ -23,7 +23,10 @@ export function createApp() {
   const app = express();
 
   app.disable('x-powered-by'); // no anunciar que el servidor usa Express
-  app.set('trust proxy', 'loopback'); // req.ip correcto detrás del proxy de Vite (para el límite de intentos de login)
+  // req.ip correcto para el límite de intentos de login:
+  // - en desarrollo, detrás del proxy de Vite (loopback)
+  // - en Render, detrás de su balanceador y del proxy de Vercel (TRUST_PROXY=true)
+  app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? true : 'loopback');
   app.use(express.json({ limit: '100kb' }));
   app.use(realtimeNotifier); // avisa por Socket.IO cuando algo cambia (ver realtime/socket.js)
 

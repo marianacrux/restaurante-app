@@ -7,7 +7,14 @@ import { Server } from 'socket.io';
 let io = null;
 
 export function initSocket(httpServer) {
-  io = new Server(httpServer, { path: '/socket.io', cors: { origin: false } });
+  // En producción el frontend (Vercel) y el backend (Render) están en dominios distintos:
+  // FRONTEND_URL indica qué dominios pueden conectarse (separados por comas).
+  // En desarrollo no hace falta: Vite reenvía /socket.io desde el mismo origen.
+  const origins = (process.env.FRONTEND_URL ?? '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+  io = new Server(httpServer, { path: '/socket.io', cors: { origin: origins.length ? origins : false } });
   io.on('connection', (socket) => {
     socket.emit('hello', { at: new Date().toISOString() });
   });

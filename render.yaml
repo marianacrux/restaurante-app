@@ -1,0 +1,34 @@
+# Blueprint de Render: crea el backend (API + tiempo real + reporte por hora).
+# En Render: New → Blueprint → elegir este repositorio.
+# Las variables con "sync: false" se piden en pantalla al crear el servicio (son secretas o dependen de su cuenta).
+services:
+  - type: web
+    name: restaurante-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    region: virginia # cerca de Neon (us-east-1); buena latencia desde Colombia
+    buildCommand: npm install && npx prisma migrate deploy
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL # cadena de conexión de Neon
+        sync: false
+      - key: SEED_USER_PASSWORD # contraseña de las cuentas de demo
+        sync: false
+      - key: FRONTEND_URL # https://<su-proyecto>.vercel.app (para el tiempo real)
+        sync: false
+      - key: PUBLIC_APP_URL # la misma URL de Vercel (enlace de seguimiento del bot)
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      - key: TRUST_PROXY
+        value: "true"
+      - key: REPORTS_ENABLED
+        value: "true"
+      - key: EXCEL_REPORT_PATH
+        value: reports/reporte-ventas.xlsx

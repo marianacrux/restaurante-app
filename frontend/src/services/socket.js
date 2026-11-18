@@ -3,7 +3,12 @@
 // cada pantalla decide si le interesa y vuelve a pedir sus datos por la API.
 import { io } from 'socket.io-client';
 
-const socket = io({ path: '/socket.io', autoConnect: true, reconnection: true });
+// En desarrollo: mismo origen (Vite reenvía /socket.io al backend).
+// En producción: Vercel no reenvía WebSockets, así que se conecta directo al backend de Render
+// (VITE_SOCKET_URL, p. ej. https://restaurante-api.onrender.com).
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
+const options = { path: '/socket.io', autoConnect: true, reconnection: true };
+const socket = SOCKET_URL ? io(SOCKET_URL, options) : io(options);
 
 const listeners = new Set();
 socket.on('change', (event) => {

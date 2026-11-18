@@ -3,10 +3,16 @@
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "db:seed": "prisma db seed"
+    "postinstall": "prisma generate",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:demo": "node prisma/demo-data.js"
   },
   "keywords": [],
   "author": "",
@@ -23,10 +29,8 @@
     "express": "^5.3.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "2.5.0",
+    "prisma": "^6.19.3",
     "socket.io": "4.8.4",
     "zod": "^4.6.7"
-  },
-  "devDependencies": {
-    "prisma": "^6.19.3"
   }
 }
