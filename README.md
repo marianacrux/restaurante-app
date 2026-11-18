@@ -50,8 +50,8 @@ Navegador ──► Vercel (frontend) ──/api, /uploads──► Render (back
    - `DATABASE_URL`: la de Neon
    - `SEED_USER_PASSWORD`: contraseña para las cuentas de demo (mínimo 8 caracteres)
    - `FRONTEND_URL` y `PUBLIC_APP_URL`: déjelas vacías por ahora (paso 4)
-4. Al terminar, anote la URL del servicio, por ejemplo `https://restaurante-api.onrender.com`,
-   y compruebe `https://restaurante-api.onrender.com/api/health`.
+4. Al terminar, anote la URL del servicio, por ejemplo `https://restaurante-api-3n6k.onrender.com`,
+   y compruebe `https://restaurante-api-3n6k.onrender.com/api/health`.
 5. Cargue los datos **una sola vez** desde su computador (carpeta `backend/`):
    ```bash
    DATABASE_URL="<url de Neon>" npm run db:seed

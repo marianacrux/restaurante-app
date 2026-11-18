@@ -4,8 +4,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://restaurante-api.onrender.com/api/:path*" },
-    { "source": "/uploads/:path*", "destination": "https://restaurante-api.onrender.com/uploads/:path*" },
+    { "source": "/api/:path*", "destination": "https://restaurante-api-3n6k.onrender.com/api/:path*" },
+    { "source": "/uploads/:path*", "destination": "https://restaurante-api-3n6k.onrender.com/uploads/:path*" },
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ]
 }
